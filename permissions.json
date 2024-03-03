@@ -1,0 +1,7 @@
+{
+  "ranks": [
+    {"name": "Admin", "users": ["User1", "User2"]},
+    {"name": "Moderator", "users": ["User3"]},
+    {"name": "Trusted", "users": ["User4"]}
+  ]
+}
