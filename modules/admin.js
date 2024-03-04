@@ -85,12 +85,6 @@ module.exports = {
             // Respond with a static greet message
             client.say(channel, 'Lasciate ogne speranza, voi ch\'intrate');
             break;
-
-          // Add more commands here as needed
-
-          default:
-            console.log(`Unknown command: ${command}`);
-            break;
         }
       }
     }
