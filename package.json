@@ -4,6 +4,7 @@
   "description": "Modular IRC Bot",
   "main": "michibot.js",
   "scripts": {
+    "start": "node michibot.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
@@ -17,6 +18,7 @@
   },
   "homepage": "https://github.com/PC-Logix/MichiBot#readme",
   "dependencies": {
-    "irc": "^0.5.2"
+    "better-sqlite3": "^12.8.0",
+    "irc-framework": "^4.14.0"
   }
 }

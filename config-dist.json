@@ -1,0 +1,37 @@
+{
+  "channels": [
+    "#example"
+  ],
+  "server": "irc.example.net",
+  "userName": "examplebot",
+  "realName": "Example IRC Bot",
+  "port": 6697,
+  "debug": false,
+  "showErrors": false,
+  "autoRejoin": true,
+  "autoConnect": false,
+  "secure": true,
+  "selfSigned": false,
+  "certExpired": false,
+  "floodProtection": true,
+  "floodProtectionDelay": 1000,
+  "sasl": false,
+  "commandPrefix": "#",
+  "bridges": {
+    "discord": {
+      "enabled": false,
+      "ircNicks": ["ExampleBridgeUser"],
+      "pattern": "^<([^>]+)>\\s+(.+)$",
+      "auth": {
+        "enabled": false,
+        "lookupUrl": "https://example.com/resolve-user-id",
+        "method": "POST",
+        "timeoutMs": 3000,
+        "headerName": "x-example-secret",
+        "headerValue": "change-me",
+        "cacheTtlMs": 300000,
+        "failureCacheTtlMs": 30000
+      }
+    }
+  }
+}

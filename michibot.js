@@ -1,81 +1,172 @@
-const fs = require('fs');
-const path = require('path');
-const irc = require('irc');
+'use strict';
 
+const path = require('path');
+const IRC = require('irc-framework');
 const config = require('./config.json');
 
-// Initialize permissions module
-const permissionsModule = require('./modules/permissions.js');
-permissionsModule.init();
+const permissions = require('./modules/permissions.js');
+const accountState = require('./utils/accountState');
+const channelState = require('./utils/channelState');
+const { normalizeMessage } = require('./lib/messageNormalizer');
+const { normalizeCommandName } = require('./lib/commandHandler');
 
-// Initialize admin module with permissions
-const adminModule = require('./modules/admin.js');
-adminModule.init(config, permissionsModule);
+const logger = require('./core/logger');
+const { createCapabilityManager } = require('./core/capabilities');
+const { createContextFactory } = require('./core/context');
+const { bindIrcEvents } = require('./core/events');
+const { createExtensionManager } = require('./core/extensions');
+const { createStateHelpers } = require('./core/state');
 
+const REQUESTED_CAPS = [
+  'account-notify',
+  'extended-join',
+  'multi-prefix',
+  'userhost-in-names',
+  'cap-notify',
+  'chghost',
+  'away-notify'
+];
 
-// Load modules dynamically from the 'modules' directory
-const modulesDir = path.join(__dirname, 'modules');
-const modules = [];
+permissions.init();
 
-fs.readdirSync(modulesDir).forEach(file => {
-  const modulePath = path.join(modulesDir, file);
-  const module = require(modulePath);
+const client = new IRC.Client();
+const commandRegistry = new Map();
+const configPath = path.join(__dirname, 'config.json');
 
-  // Add the module to the array
-  modules.push(module);
-});
-
-
-// Load all plugins from the 'plugins' directory
-const loadPlugins = () => {
-  const pluginsDir = path.join(__dirname, 'plugins');
-  const pluginFiles = fs.readdirSync(pluginsDir).filter(file => file.endsWith('.js'));
-
-  const loadedPlugins = [];
-
-  for (const file of pluginFiles) {
-    const pluginPath = path.join(pluginsDir, file);
-    const loadedPlugin = require(pluginPath);
-
-    console.log(`Loaded plugin: ${file}`);
-    if (loadedPlugin.commands) {
-      console.log(`Commands: ${loadedPlugin.commands.join(', ')}`);
-    }
-
-    // Initialize the plugin with the configuration
-    if (loadedPlugin.init) {
-      console.log(`Initializing plugin: ${file}`);
-      loadedPlugin.init(config);  // Pass the config object to the plugin
-    }
-
-    loadedPlugins.push(loadedPlugin);
+const currentPrefixRef = {
+  value: config.commandPrefix || '!',
+  get() {
+    return this.value;
+  },
+  set(next) {
+    this.value = next;
   }
-
-  return loadedPlugins;
 };
 
-const plugins = loadPlugins();
+function normalizeCommandSpec(commandNameOrSpec) {
+  if (typeof commandNameOrSpec === 'string') {
+    return {
+      name: normalizeCommandName(commandNameOrSpec),
+      access: { public: true }
+    };
+  }
 
-const client = new irc.Client(config.server, config.userName, config);
+  const spec = commandNameOrSpec || {};
+  return {
+    name: normalizeCommandName(spec.name),
+    access: spec.access || { public: true },
+    hidden: !!spec.hidden
+  };
+}
 
-// Combine loaded plugins and modules
-const extensions = [...plugins, ...modules];
+function registerCommand(commandNameOrSpec, handler, extensionKey) {
+  const spec = normalizeCommandSpec(commandNameOrSpec);
+  const normalized = spec.name;
+  if (!normalized) {
+    return;
+  }
 
-// Listen for messages in the channel
-client.addListener('message', (from, to, message) => {
-  console.log(`${to} <${from}> ${message}`);
+  if (commandRegistry.has(normalized)) {
+    const existing = commandRegistry.get(normalized);
+    logger.warn(
+      `Command "${normalized}" from ${extensionKey} conflicts with ${existing.extensionKey}; skipping duplicate`
+    );
+    return;
+  }
 
-  // Relay message to all loaded plugins and modules
-  extensions.forEach(extension => {
-    if (extension.handleMessage) {
-      const result = extension.handleMessage(client, to, from, message);
-
-      // Handle extension results if needed
-      // console.log(`Extension result:`, result);
-    }
+  commandRegistry.set(normalized, {
+    extensionKey,
+    handler,
+    access: spec.access,
+    hidden: !!spec.hidden,
+    name: normalized
   });
+
+  logger.log(`Registered command "${normalized}" from ${extensionKey}`);
+}
+
+function unregisterCommandsForExtension(extensionKey) {
+  for (const [commandName, info] of commandRegistry.entries()) {
+    if (info.extensionKey === extensionKey) {
+      commandRegistry.delete(commandName);
+      logger.log(`Unregistered command "${commandName}" from ${extensionKey}`);
+    }
+  }
+}
+
+const stateHelpers = createStateHelpers({
+  accountState,
+  channelState,
+  normalizeCommandName,
+  client,
+  logger
 });
 
+let extensionManager;
 
-// Connect to the IRC server
-client.connect();
+const contextFactory = createContextFactory({
+  client,
+  config,
+  permissions,
+  commandRegistry,
+  currentPrefixRef,
+  extensionManager: {
+    getLoadedExtensions: () => extensionManager.getLoadedExtensions(),
+    loadExtensionByName: (...args) => extensionManager.loadExtensionByName(...args),
+    unloadExtensionByName: (...args) => extensionManager.unloadExtensionByName(...args),
+    reloadExtensionByName: (...args) => extensionManager.reloadExtensionByName(...args)
+  },
+  registerCommand,
+  normalizeCommandName,
+  logger,
+  stateHelpers,
+  configPath
+});
+
+extensionManager = createExtensionManager({
+  baseDir: __dirname,
+  logger,
+  buildContext: contextFactory.buildContext,
+  registerCommand,
+  unregisterCommandsForExtension
+});
+
+const capabilityManager = createCapabilityManager({
+  client,
+  logger,
+  requestedCaps: REQUESTED_CAPS
+});
+
+bindIrcEvents({
+  client,
+  config,
+  logger,
+  capabilityManager,
+  accountState,
+  channelState,
+  stateHelpers,
+  commandRegistry,
+  extensionManager,
+  buildContext: contextFactory.buildContext,
+  currentPrefixRef,
+  normalizeMessage,
+  reply: contextFactory.reply
+});
+
+capabilityManager.useMiddleware();
+
+(async () => {
+  await extensionManager.loadAllFrom('modules');
+  await extensionManager.loadAllFrom('plugins');
+
+  client.connect({
+    host: config.server,
+    port: config.port || (config.secure ? 6697 : 6667),
+    nick: config.userName,
+    username: config.userName,
+    gecos: config.realName || config.userName,
+    tls: !!config.secure,
+    rejectUnauthorized: !config.selfSigned,
+    auto_reconnect: config.autoRejoin !== false
+  });
+})();

@@ -1,19 +1,19 @@
-let commandPrefix; // Command prefix will be set when the module is loaded
-module.exports = {
-    init: (config, permissionsModule) => {
-        commandPrefix = config.commandPrefix || '!';
-    },
-    handleMessage: (client, channel, from, message) => {
-        // Check if the message is a command and handle it
-        if (message.startsWith(commandPrefix)) {
-            console.log(`Handling message: ${message}`);
-            const parts = message.split(' ');
-            const command = parts[0].toLowerCase();
+'use strict';
 
-            switch (command) {
-                case `${commandPrefix}loadplugin`:
-                    client.say(channel, 'pong');
-            }
-        }
-    },
+module.exports = {
+  commands: ['ping'],
+
+  init() {
+    console.log('[pingpong] initialized');
+  },
+
+  dispose() {
+    console.log('[pingpong] disposed');
+  },
+
+  async handleCommand(ctx) {
+    if (ctx.command === 'ping') {
+      ctx.reply(ctx.to, 'pong');
+    }
+  }
 };
