@@ -1,0 +1,29 @@
+<%- include('partials/header') %>
+<form class="search-form" method="get" action="/quotes">
+  <label>Search: <input type="text" name="q" value="<%= query.q || '' %>"></label>
+  <label>User: <input type="text" name="user" value="<%= query.user || '' %>"></label>
+  <label>ID: <input type="text" name="id" value="<%= query.id || '' %>"></label>
+  <button type="submit">Filter</button>
+</form>
+
+<p><%= quotes.count %> quote<%= quotes.count === 1 ? '' : 's' %> found.</p>
+
+<div class="pagination">
+  <% if (quotes.page > 1) { %><a href="?page=<%= quotes.page - 1 %>&q=<%= encodeURIComponent(query.q || '') %>&user=<%= encodeURIComponent(query.user || '') %>&id=<%= encodeURIComponent(query.id || '') %>">Previous</a><% } %>
+  <span>Page <%= quotes.page %> of <%= quotes.pages %></span>
+  <% if (quotes.page < quotes.pages) { %><a href="?page=<%= quotes.page + 1 %>&q=<%= encodeURIComponent(query.q || '') %>&user=<%= encodeURIComponent(query.user || '') %>&id=<%= encodeURIComponent(query.id || '') %>">Next</a><% } %>
+</div>
+
+<div class="table-wrap">
+  <table>
+    <tr><th>ID</th><th>Quote</th><th>Added By</th></tr>
+    <% for (const quote of quotes.rows) { %>
+      <tr>
+        <td><a href="/quotes?id=<%= quote.id %>">#<%= quote.id %></a></td>
+        <td>&lt;<%= quote.user %>&gt; <%= quote.data %></td>
+        <td><%= quote.added_by || '' %></td>
+      </tr>
+    <% } %>
+  </table>
+</div>
+<%- include('partials/footer') %>

@@ -1,5 +1,11 @@
 'use strict';
 
+const {
+  getCooldownRemainingMs,
+  updateCooldown,
+  formatCooldownFailMessage
+} = require('./cooldowns');
+
 function normalizeCommandName(name) {
   return String(name || '').trim().toLowerCase();
 }
@@ -8,7 +14,56 @@ function escapeRegex(str) {
   return String(str || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-function getLiveCommandNames({ client, config }) {
+function buildRawCommandLine(command, args) {
+  const parts = [command].concat(Array.isArray(args) ? args : []);
+  return parts.map(part => String(part || '').trim()).filter(Boolean).join(' ');
+}
+
+function resolveCommandInvocation(parsed, commandRegistry, aliasRegistry) {
+  const requestedCommand = normalizeCommandName(parsed?.command);
+
+  if (!requestedCommand) {
+    return null;
+  }
+
+  if (commandRegistry.has(requestedCommand)) {
+    return {
+      command: requestedCommand,
+      invokedCommand: requestedCommand,
+      isAlias: false,
+      args: Array.isArray(parsed.args) ? parsed.args : [],
+      raw: parsed.raw
+    };
+  }
+
+  const alias = aliasRegistry?.get(requestedCommand);
+  if (!alias) {
+    return null;
+  }
+
+  const targetCommand = normalizeCommandName(alias.target);
+  if (!targetCommand || !commandRegistry.has(targetCommand)) {
+    return null;
+  }
+
+  const defaultArgs = Array.isArray(alias.defaultArgs) ? alias.defaultArgs.map(String) : [];
+  const userArgs = Array.isArray(parsed.args) ? parsed.args : [];
+  const args = defaultArgs.concat(userArgs);
+
+  return {
+    command: targetCommand,
+    invokedCommand: requestedCommand,
+    isAlias: true,
+    alias,
+    args,
+    raw: buildRawCommandLine(targetCommand, args)
+  };
+}
+
+function getLiveCommandNames({
+  client,
+  config
+}) {
   const names = new Set();
 
   const liveNick = String(client?.user?.nick || '').trim();
@@ -21,9 +76,9 @@ function getLiveCommandNames({ client, config }) {
     names.add(configuredNick);
   }
 
-  const extraNames = Array.isArray(config?.nameCommands?.names)
-    ? config.nameCommands.names
-    : [];
+  const extraNames = Array.isArray(config?.nameCommands?.names) ?
+    config.nameCommands.names :
+    [];
 
   for (const name of extraNames) {
     const trimmed = String(name || '').trim();
@@ -59,7 +114,12 @@ function accessRuleMentionsGlobalRank(rule) {
   return false;
 }
 
-function parseCommandMessage({ text, currentPrefix, client, config }) {
+function parseCommandMessage({
+  text,
+  currentPrefix,
+  client,
+  config
+}) {
   const msg = String(text || '');
 
   if (msg.startsWith(currentPrefix)) {
@@ -81,7 +141,10 @@ function parseCommandMessage({ text, currentPrefix, client, config }) {
   }
 
   if (isNameCommandEnabled(config)) {
-    const botNames = getLiveCommandNames({ client, config });
+    const botNames = getLiveCommandNames({
+      client,
+      config
+    });
 
     for (const botName of botNames) {
       const pattern = new RegExp(
@@ -134,11 +197,17 @@ function buildRuntimeContext(baseContext, normalized) {
     rawText: normalized.rawText,
     isPrivate: normalized.isPrivate,
     account: normalized.account,
+    transportAccount: normalized.transportAccount,
     channelModes: normalized.channelModes
   };
 }
 
-async function dispatchPassiveListeners({ loadedExtensions, baseContext, normalized, error }) {
+async function dispatchPassiveListeners({
+  loadedExtensions,
+  baseContext,
+  normalized,
+  error
+}) {
   const runtimeContext = buildRuntimeContext(baseContext, normalized);
 
   for (const runtimeInfo of loadedExtensions.values()) {
@@ -159,27 +228,48 @@ async function dispatchCommand({
   normalized,
   baseContext,
   commandRegistry,
+  aliasRegistry,
   currentPrefix,
   error,
   reply
 }) {
-  const registered = commandRegistry.get(parsed.command);
+  const invocation = resolveCommandInvocation(parsed, commandRegistry, aliasRegistry);
+  if (!invocation) {
+    return;
+  }
+
+  const registered = commandRegistry.get(invocation.command);
   if (!registered) {
     return;
   }
 
+  let skipCooldownUpdate = false;
+
   const ctx = {
     ...buildRuntimeContext(baseContext, normalized),
     prefix: currentPrefix,
-    raw: parsed.raw,
-    command: parsed.command,
-    args: parsed.args,
+    raw: invocation.raw,
+    originalRaw: parsed.raw,
+    command: invocation.command,
+    invokedCommand: invocation.invokedCommand,
+    isAlias: invocation.isAlias,
+    alias: invocation.alias || null,
+    args: invocation.args,
     triggerType: parsed.triggerType,
     trigger: parsed.trigger,
-    access: registered.access || { public: true }
+    access: registered.access || {
+      public: true
+    },
+    skipCooldown() {
+      skipCooldownUpdate = true;
+    },
+    consumeCooldown() {
+      skipCooldownUpdate = false;
+    }
   };
 
-  if (!ctx.isBridge && !ctx.account && typeof baseContext?.bot?.refreshAccount === 'function' && accessRuleMentionsGlobalRank(registered.access)) {
+  if (!ctx.isBridge && !ctx.account && typeof baseContext?.bot?.refreshAccount === 'function' &&
+    accessRuleMentionsGlobalRank(registered.access)) {
     ctx.account = await baseContext.bot.refreshAccount(ctx.nick);
   }
 
@@ -187,11 +277,37 @@ async function dispatchCommand({
     return;
   }
 
+  const cooldown = registered.cooldown || null;
+  if (cooldown) {
+    const remainingMs = getCooldownRemainingMs(cooldown, ctx.nick);
+    let bypassCooldown = false;
+
+    if (remainingMs > 0 && !cooldown.ignorePermissions) {
+      if (!ctx.isBridge && !ctx.account && typeof baseContext?.bot?.refreshAccount === 'function') {
+        ctx.account = await baseContext.bot.refreshAccount(ctx.nick);
+      }
+      bypassCooldown = await baseContext.permissions.canAccessAsync(ctx, { globalRank: 'Admin' });
+    }
+
+    if (remainingMs > 0 && !bypassCooldown) {
+      const target = normalized.replyTarget || normalized.to;
+      if (ctx.notice && ctx.nick) {
+        ctx.notice(ctx.nick, formatCooldownFailMessage(cooldown, remainingMs));
+      } else {
+        reply(target, formatCooldownFailMessage(cooldown, remainingMs));
+      }
+      return;
+    }
+  }
+
   try {
     await registered.handler(ctx);
+    if (cooldown && !skipCooldownUpdate) {
+      updateCooldown(cooldown, ctx.nick);
+    }
   } catch (err) {
-    error(`Command "${parsed.command}" failed in ${registered.extensionKey}:`, err);
-    reply(normalized.replyTarget || normalized.to, `Error running command: ${parsed.command}`);
+    error(`Command "${invocation.invokedCommand}" failed in ${registered.extensionKey}:`, err);
+    reply(normalized.replyTarget || normalized.to, `Error running command: ${invocation.invokedCommand}`);
   }
 }
 
@@ -200,6 +316,7 @@ async function handleMessage({
   config,
   currentPrefix,
   commandRegistry,
+  aliasRegistry,
   loadedExtensions,
   buildContext,
   normalizeMessage,
@@ -248,6 +365,7 @@ async function handleMessage({
     normalized,
     baseContext,
     commandRegistry,
+    aliasRegistry,
     currentPrefix,
     error,
     reply
@@ -257,5 +375,6 @@ async function handleMessage({
 module.exports = {
   handleMessage,
   parseCommandMessage,
-  normalizeCommandName
+  normalizeCommandName,
+  resolveCommandInvocation
 };

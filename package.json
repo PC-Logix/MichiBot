@@ -19,6 +19,9 @@
   "homepage": "https://github.com/PC-Logix/MichiBot#readme",
   "dependencies": {
     "better-sqlite3": "^12.8.0",
+    "ejs": "^3.1.10",
+    "express": "^4.21.2",
+    "fengari": "^0.1.5",
     "irc-framework": "^4.14.0"
   }
 }

@@ -1,0 +1,26 @@
+<%- include('partials/header') %>
+<div class="card">
+  <p>The old Java potion engine had a large amount of in-memory generated potion data. This page currently ports the DB-backed/statistics side, so it can show potion-related legacy statistics when present.</p>
+</div>
+
+<% if (!groups.length) { %>
+  <p>No potion statistics found in the database.</p>
+<% } %>
+
+<% for (const group of groups) { %>
+  <div class="card">
+    <h2><%= group.name %></h2>
+    <div class="table-wrap">
+      <table>
+        <tr><th>Key</th><th>Count</th></tr>
+        <% for (const row of group.rows) { %>
+          <tr>
+            <td><%= row.stat_key %></td>
+            <td><%= row.count %></td>
+          </tr>
+        <% } %>
+      </table>
+    </div>
+  </div>
+<% } %>
+<%- include('partials/footer') %>

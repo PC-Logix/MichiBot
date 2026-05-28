@@ -1,6 +1,12 @@
 'use strict';
 
-function createStateHelpers({ accountState, channelState, normalizeCommandName, client, logger }) {
+function createStateHelpers({
+  accountState,
+  channelState,
+  normalizeCommandName,
+  client,
+  logger
+}) {
   const whoisPending = new Map();
   const whoisSeededChannels = new Set();
 
@@ -59,7 +65,9 @@ function createStateHelpers({ accountState, channelState, normalizeCommandName, 
         whoisPending.delete(pendingKey);
 
         const finalValue = value || null;
-        logger.log(`[auth] WHOIS lookup finished for ${targetNick}: ${finalValue || '(none)'}${source ? ` (${source})` : ''}`);
+        logger.log(
+          `[auth] WHOIS lookup finished for ${targetNick}: ${finalValue || '(none)'}${source ? ` (${source})` : ''}`
+          );
         resolve(finalValue);
       };
 

@@ -1,17 +1,21 @@
 'use strict';
 
-function createCapabilityManager({ client, logger, requestedCaps = [] }) {
+function createCapabilityManager({
+  client,
+  logger,
+  requestedCaps = []
+}) {
   const enabledCaps = new Set();
   const requestedSet = new Set(
     (Array.isArray(requestedCaps) ? requestedCaps : [])
-      .map(cap => String(cap || '').trim())
-      .filter(Boolean)
+    .map(cap => String(cap || '').trim())
+    .filter(Boolean)
   );
 
   function CapabilityMiddleware(caps) {
-    const capList = Array.isArray(caps)
-      ? caps.map(cap => String(cap || '').trim()).filter(Boolean)
-      : [];
+    const capList = Array.isArray(caps) ?
+      caps.map(cap => String(cap || '').trim()).filter(Boolean) :
+      [];
 
     return function capabilityMiddleware(clientInstance, raw_events, parsed_events) {
       if (capList.length === 0) {

@@ -20,7 +20,9 @@
   "bridges": {
     "discord": {
       "enabled": false,
-      "ircNicks": ["ExampleBridgeUser"],
+      "ircNicks": [
+        "ExampleBridgeUser"
+      ],
       "pattern": "^<([^>]+)>\\s+(.+)$",
       "auth": {
         "enabled": false,
@@ -30,8 +32,33 @@
         "headerName": "x-example-secret",
         "headerValue": "change-me",
         "cacheTtlMs": 300000,
-        "failureCacheTtlMs": 30000
+        "failureCacheTtlMs": 30000,
+        "transportIdentity": {
+          "enabled": true,
+          "allowedNicks": [
+            "ExampleBridgeUser"
+          ],
+          "allowedAccounts": [
+            "ExampleBridgeUser"
+          ],
+          "allowWhoisFallback": true,
+          "whoisTimeoutMs": 2000
+        }
       }
     }
+  },
+  "http": {
+    "enabled": true,
+    "host": "0.0.0.0",
+    "port": 8080,
+    "baseDomain": "http://localhost:8080"
+  },
+  "dynamicCommands": {
+    "webWrites": false
+  },
+  "luaSandbox": {
+    "timeoutMs": 3500,
+    "maxMessageLength": 420,
+    "maxOutputLength": 2000
   }
 }

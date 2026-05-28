@@ -1,0 +1,22 @@
+<%- include('partials/header') %>
+<% if (!groups.length) { %>
+  <p>No statistics found.</p>
+<% } %>
+
+<% for (const group of groups) { %>
+  <div class="card">
+    <h2><%= group.name %></h2>
+    <div class="table-wrap">
+      <table>
+        <tr><th>Key</th><th>Count</th></tr>
+        <% for (const row of group.rows) { %>
+          <tr>
+            <td><%= row.stat_key %></td>
+            <td><%= row.count %></td>
+          </tr>
+        <% } %>
+      </table>
+    </div>
+  </div>
+<% } %>
+<%- include('partials/footer') %>

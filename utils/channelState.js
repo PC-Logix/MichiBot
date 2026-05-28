@@ -120,7 +120,10 @@ function parseNickWithPrefixes(entry) {
   nick = nick.trim();
   if (!nick) return null;
 
-  return { nick, modes: Array.from(modes) };
+  return {
+    nick,
+    modes: Array.from(modes)
+  };
 }
 
 function applyNames(channelName, namesList) {
@@ -158,6 +161,12 @@ function getModeFlags(channelName, nick) {
   };
 }
 
+function getUsers(channelName) {
+  const channel = ensureChannel(channelName);
+  if (!channel) return [];
+  return Array.from(channel.users.values()).map(user => user.nick).sort((a, b) => a.localeCompare(b));
+}
+
 module.exports = {
   addUserMode,
   applyNames,
@@ -165,6 +174,7 @@ module.exports = {
   ensureUser,
   getModeFlags,
   getUserModes,
+  getUsers,
   parseNickWithPrefixes,
   removeUser,
   removeUserFromAll,

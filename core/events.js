@@ -1,6 +1,8 @@
 'use strict';
 
-const { handleMessage } = require('../lib/commandHandler');
+const {
+  handleMessage
+} = require('../libs/commandHandler');
 
 function bindIrcEvents({
   client,
@@ -11,6 +13,7 @@ function bindIrcEvents({
   channelState,
   stateHelpers,
   commandRegistry,
+  aliasRegistry,
   extensionManager,
   buildContext,
   currentPrefixRef,
@@ -180,6 +183,7 @@ function bindIrcEvents({
       config,
       currentPrefix: currentPrefixRef.get(),
       commandRegistry,
+      aliasRegistry,
       loadedExtensions: extensionManager.getLoadedExtensions(),
       buildContext,
       normalizeMessage,

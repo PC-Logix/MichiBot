@@ -1,0 +1,57 @@
+<%- include('../partials/header') %>
+
+<% if (message) { %>
+  <div class="card"><p><%= message %></p></div>
+<% } %>
+
+<div class="card">
+  <h2>Dynamic Commands</h2>
+  <p>
+    Legacy LanteaBot dynamic commands from the <code>Commands</code> table.
+    Use <code><%= prefix %>command placeholders</code> and <code><%= prefix %>command prefixes</code> in IRC for syntax notes.
+  </p>
+
+  <form class="search-form" method="get" action="/dyncmds">
+    <input type="text" name="q" value="<%= result.q %>" placeholder="Search commands/help/response">
+    <button type="submit">Search</button>
+    <% if (result.q) { %><a href="/dyncmds">clear</a><% } %>
+  </form>
+
+  <p class="muted"><%= result.count %> command(s)</p>
+</div>
+
+<div class="card">
+  <h2>Command List</h2>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Command</th>
+          <th>Help</th>
+          <th>Response</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% for (const row of result.rows) { %>
+          <tr>
+            <td><a href="/dyncmds?command=<%= encodeURIComponent(row.command) %><%= result.q ? '&q=' + encodeURIComponent(result.q) : '' %>"><code><%= prefix %><%= row.command %></code></a></td>
+            <td><%= row.help || defaultHelp %></td>
+            <td><pre class="response-preview"><%= row.return_value %></pre></td>
+          </tr>
+        <% } %>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="pagination">
+    <% if (result.page > 1) { %>
+      <a href="/dyncmds?page=<%= result.page - 1 %><%= result.q ? '&q=' + encodeURIComponent(result.q) : '' %>">Previous</a>
+    <% } %>
+    <span>Page <%= result.page %> / <%= result.pages %></span>
+    <% if (result.page < result.pages) { %>
+      <a href="/dyncmds?page=<%= result.page + 1 %><%= result.q ? '&q=' + encodeURIComponent(result.q) : '' %>">Next</a>
+    <% } %>
+  </div>
+</div>
+
+<%- include('../partials/footer') %>

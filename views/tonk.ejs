@@ -1,0 +1,36 @@
+<%- include('partials/header') %>
+<div class="card">
+  <h2>Tonk</h2>
+  <p>Tonk is a game about timing, patience and opportunity, mixed with an idle game.</p>
+  <p>To tonk successfully you must have waited past the current record. Trying to Tonk too early resets the timer.</p>
+  <p>Instead of Tonking you can Tonkout, which claims the new record and converts the whole record to points.</p>
+  <p>First-time players may need to pass the current verification code as an argument: <code><%= meta.verificationCode %></code></p>
+  <p>Example: <code><%= prefix %>tonk <%= meta.verificationCode %></code></p>
+</div>
+
+<div class="card">
+  <h2>Current Record</h2>
+  <% if (meta.currentRecord) { %>
+    <p><strong><%= meta.currentRecord.holder || '(unknown)' %></strong>: <%= meta.currentRecord.duration %></p>
+  <% } else { %>
+    <p>No current record found.</p>
+  <% } %>
+  <% if (meta.lastTonk) { %>
+    <p class="muted">Last tonk: <%= meta.lastTonk.age %> (<%= meta.lastTonk.date %>)</p>
+  <% } %>
+</div>
+
+<div class="table-wrap">
+  <table>
+    <tr><th>Rank</th><th>Nick</th><th>Points</th><th>Raw</th></tr>
+    <% for (const row of rows) { %>
+      <tr>
+        <td>#<%= row.rank %></td>
+        <td><%= row.nick %></td>
+        <td><%= row.points %></td>
+        <td><%= row.rawPoints %></td>
+      </tr>
+    <% } %>
+  </table>
+</div>
+<%- include('partials/footer') %>

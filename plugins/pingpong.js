@@ -1,7 +1,7 @@
 'use strict';
 
 module.exports = {
-  commands: ['ping'],
+  commands: [{ name: 'ping', aliases: ['p'] }],
 
   init() {
     console.log('[pingpong] initialized');

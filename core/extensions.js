@@ -3,7 +3,14 @@
 const fs = require('fs');
 const path = require('path');
 
-function createExtensionManager({ baseDir, logger, buildContext, registerCommand, unregisterCommandsForExtension }) {
+function createExtensionManager({
+  baseDir,
+  logger,
+  buildContext,
+  registerCommand,
+  unregisterCommandsForExtension,
+  webServer
+}) {
   const loadedExtensions = new Map();
 
   function getExtensionKey(type, fileName) {
@@ -22,10 +29,24 @@ function createExtensionManager({ baseDir, logger, buildContext, registerCommand
     return fs.readdirSync(dirPath).filter(file => file.endsWith('.js'));
   }
 
-  async function initializeExtension(extensionKey, extension) {
+  function buildExtensionContext(runtimeInfo) {
+    const ctx = buildContext();
+    ctx.extension = {
+      key: runtimeInfo.extensionKey,
+      type: runtimeInfo.type,
+      fileName: runtimeInfo.fileName,
+      fullPath: runtimeInfo.fullPath
+    };
+    return ctx;
+  }
+
+  async function initializeExtension(runtimeInfo, extension) {
     if (typeof extension.init === 'function') {
-      await extension.init(buildContext());
-      logger.log(`Initialized ${extensionKey}`);
+      await extension.init(buildExtensionContext({
+        ...runtimeInfo,
+        module: extension
+      }));
+      logger.log(`Initialized ${runtimeInfo.extensionKey}`);
     }
   }
 
@@ -43,14 +64,42 @@ function createExtensionManager({ baseDir, logger, buildContext, registerCommand
     }
   }
 
+  async function registerExtensionWeb(runtimeInfo) {
+    if (!webServer || !runtimeInfo?.module || typeof runtimeInfo.module.registerWeb !== 'function') {
+      return;
+    }
+
+    try {
+      const webCtx = webServer.buildPluginContext({
+        extension: {
+          key: runtimeInfo.extensionKey,
+          type: runtimeInfo.type,
+          fileName: runtimeInfo.fileName,
+          fullPath: runtimeInfo.fullPath
+        },
+        runtimeInfo,
+        botContext: buildExtensionContext(runtimeInfo)
+      });
+
+      await runtimeInfo.module.registerWeb(webCtx);
+      logger.log(`Registered web handlers for ${runtimeInfo.extensionKey}`);
+    } catch (err) {
+      logger.error(`Web registration failed for ${runtimeInfo.extensionKey}:`, err);
+    }
+  }
+
   async function disposeExtension(runtimeInfo) {
     if (!runtimeInfo || !runtimeInfo.module) {
       return;
     }
 
+    if (webServer && typeof webServer.unregisterRoutesForExtension === 'function') {
+      webServer.unregisterRoutesForExtension(runtimeInfo.extensionKey);
+    }
+
     if (typeof runtimeInfo.module.dispose === 'function') {
       try {
-        await runtimeInfo.module.dispose(buildContext());
+        await runtimeInfo.module.dispose(buildExtensionContext(runtimeInfo));
         logger.log(`Disposed ${runtimeInfo.extensionKey}`);
       } catch (err) {
         logger.error(`Dispose failed for ${runtimeInfo.extensionKey}:`, err);
@@ -79,17 +128,19 @@ function createExtensionManager({ baseDir, logger, buildContext, registerCommand
     try {
       delete require.cache[require.resolve(fullPath)];
       const extension = require(fullPath);
-
-      await initializeExtension(extensionKey, extension);
-      registerExtensionCommands(extensionKey, extension);
-
-      loadedExtensions.set(extensionKey, {
+      const runtimeInfo = {
         extensionKey,
         type,
         fileName,
         fullPath,
         module: extension
-      });
+      };
+
+      await initializeExtension(runtimeInfo, extension);
+      registerExtensionCommands(extensionKey, extension);
+
+      loadedExtensions.set(extensionKey, runtimeInfo);
+      await registerExtensionWeb(runtimeInfo);
 
       logger.log(`Loaded ${extensionKey}`);
 

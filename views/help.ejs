@@ -1,0 +1,19 @@
+<%- include('partials/header') %>
+<div class="card">
+  <p>Available commands for <%= botNick %>. This is generated from MichiBot's loaded command registry.</p>
+</div>
+
+<div class="table-wrap">
+  <table>
+    <tr><th>Command</th><th>Usage</th><th>Plugin / Module</th><th>Access</th></tr>
+    <% for (const command of commands) { %>
+      <tr>
+        <td><%= command.name %></td>
+        <td><code><%= command.usage %></code></td>
+        <td><%= command.extensionKey %></td>
+        <td><code><%= JSON.stringify(command.access) %></code></td>
+      </tr>
+    <% } %>
+  </table>
+</div>
+<%- include('partials/footer') %>

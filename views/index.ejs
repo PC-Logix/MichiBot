@@ -1,0 +1,22 @@
+<%- include('partials/header') %>
+<div class="card">
+  <p>Welcome to <%= botNick %>'s index page. I'll try to keep this updated as I add modules.</p>
+  <p>Command prefix: <code><%= prefix %></code></p>
+</div>
+
+<div class="card">
+  <h2>Database</h2>
+  <p class="muted"><%= status.dbPath %></p>
+  <div class="table-wrap">
+    <table>
+      <tr><th>Table</th><th>Status</th></tr>
+      <% for (const row of status.tables) { %>
+        <tr>
+          <td><%= row.name %></td>
+          <td class="<%= row.exists ? 'ok' : 'bad' %>"><%= row.exists ? 'present' : 'missing' %></td>
+        </tr>
+      <% } %>
+    </table>
+  </div>
+</div>
+<%- include('partials/footer') %>

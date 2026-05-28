@@ -1,0 +1,32 @@
+<%- include('partials/header') %>
+<form class="search-form" method="get" action="/inventory">
+  <label>Search: <input type="text" name="q" value="<%= query.q || '' %>"></label>
+  <label>Owner: <input type="text" name="owner" value="<%= query.owner || '' %>"></label>
+  <button type="submit">Filter</button>
+</form>
+
+<p><%= inventory.count %> item<%= inventory.count === 1 ? '' : 's' %> found.</p>
+
+<div class="pagination">
+  <% if (inventory.page > 1) { %><a href="?page=<%= inventory.page - 1 %>&q=<%= encodeURIComponent(query.q || '') %>&owner=<%= encodeURIComponent(query.owner || '') %>">Previous</a><% } %>
+  <span>Page <%= inventory.page %> of <%= inventory.pages %></span>
+  <% if (inventory.page < inventory.pages) { %><a href="?page=<%= inventory.page + 1 %>&q=<%= encodeURIComponent(query.q || '') %>&owner=<%= encodeURIComponent(query.owner || '') %>">Next</a><% } %>
+</div>
+
+<div class="table-wrap">
+  <table>
+    <tr><th>ID</th><th>Item</th><th>Uses</th><th>Owner</th><th>Added By</th><th>Added</th><th>Flags</th></tr>
+    <% for (const item of inventory.rows) { %>
+      <tr>
+        <td><%= item.id %></td>
+        <td><%= item.item_name %></td>
+        <td><%= item.uses_left %></td>
+        <td><%= item.owner || '' %></td>
+        <td><%= item.added_by || '' %></td>
+        <td><%= item.addedDate %></td>
+        <td><%= item.is_favourite ? 'favorite ' : '' %><%= item.cursed ? 'cursed' : '' %></td>
+      </tr>
+    <% } %>
+  </table>
+</div>
+<%- include('partials/footer') %>

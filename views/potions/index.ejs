@@ -1,0 +1,81 @@
+<%- include('../partials/header') %>
+
+<% if (message) { %>
+  <div class="card notice"><%= message %></div>
+<% } %>
+
+<div class="card">
+  <h2>Potion Shelf</h2>
+  <p>
+    There are <b><%= summary.appearanceCount %></b> appearances and
+    <b><%= summary.consistencyCount %></b> consistencies. That's
+    <b><%= summary.combinationCount %></b> different potions.
+  </p>
+  <p>
+    <b><%= summary.discoveredCount %></b> combination<%= summary.discoveredCount === 1 ? ' has' : 's have' %>
+    been discovered this cycle.
+    <b><%= summary.effectCount %></b> effects are loaded.
+    <b><%= summary.uniqueEffects %></b> unique effect<%= summary.uniqueEffects === 1 ? '' : 's' %>
+    discovered so far.
+  </p>
+  <p>
+    Potion shelf resets in about <b><%= summary.resetIn %></b>.
+  </p>
+  <p>
+    Use <code><%= prefix %>drink [potion]</code>, <code><%= prefix %>randompotion</code>,
+    or <code><%= prefix %>splash &lt;nick&gt; [potion]</code>.
+  </p>
+</div>
+
+<div class="card">
+  <h2>Discovered Potions</h2>
+
+  <% if (!summary.rows.length) { %>
+    <p>No potions have been discovered yet. Go drink something suspicious.</p>
+  <% } else { %>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Potion</th>
+            <th>Effect</th>
+            <th>Discovered by</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% for (const row of summary.rows) { %>
+            <tr>
+              <td><%= row.potion %></td>
+              <td><%= row.effect %></td>
+              <td><%= row.discoverer || 'Unknown' %></td>
+            </tr>
+          <% } %>
+        </tbody>
+      </table>
+    </div>
+  <% } %>
+</div>
+
+<div class="card">
+  <details>
+    <summary>Show/hide appearances (<%= summary.appearances.length %>)</summary>
+    <div class="pill-list">
+      <% for (const entry of summary.appearances) { %>
+        <span class="pill"><%= entry.name %></span>
+      <% } %>
+    </div>
+  </details>
+</div>
+
+<div class="card">
+  <details>
+    <summary>Show/hide consistencies (<%= summary.consistencies.length %>)</summary>
+    <div class="pill-list">
+      <% for (const entry of summary.consistencies) { %>
+        <span class="pill"><%= entry.name %></span>
+      <% } %>
+    </div>
+  </details>
+</div>
+
+<%- include('../partials/footer') %>

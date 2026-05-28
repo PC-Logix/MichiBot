@@ -64,7 +64,13 @@ function parseBridgeMessage(config, message) {
   };
 }
 
-function normalizeMessage({ client, config, event, account, channelModes }) {
+function normalizeMessage({
+  client,
+  config,
+  event,
+  account,
+  channelModes
+}) {
   const from = String(event?.nick || '').trim();
   const to = String(event?.target || '').trim();
   const text = String(event?.message || '').trim();
@@ -77,10 +83,18 @@ function normalizeMessage({ client, config, event, account, channelModes }) {
     if (parsed) {
       return {
         source: 'discord-bridge',
-        from,
-        nick: from,
+
+        // Keep the full bot config on ctx so bridge auth can read:
+        // ctx.config.bridges.discord.auth
+        config,
+
+        // Logical sender. Commands/plugins should treat this as the user.
+        from: parsed.bridgeUser,
+        nick: parsed.bridgeUser,
         actor: parsed.bridgeUser,
         displayName: parsed.bridgeUser,
+
+        // IRC routing.
         to,
         target: to,
         text: parsed.bridgedText,
@@ -89,9 +103,16 @@ function normalizeMessage({ client, config, event, account, channelModes }) {
         isBridge: true,
         bridgeUser: parsed.bridgeUser,
         replyTarget,
+
+        // Transport/debug identity. This is the actual IRC bridge bot.
         rawFrom: from,
+        transportNick: from,
         rawText: text,
+
+        // Account here belongs to the transport nick, not the bridged user.
         account: null,
+        transportAccount: account || null,
+
         channelModes: channelModes || {}
       };
     }
@@ -99,6 +120,10 @@ function normalizeMessage({ client, config, event, account, channelModes }) {
 
   return {
     source: 'irc',
+
+    // Keep the full bot config on ctx for helpers that expect ctx.config.
+    config,
+
     from,
     nick: from,
     actor: from,
@@ -112,8 +137,10 @@ function normalizeMessage({ client, config, event, account, channelModes }) {
     bridgeUser: null,
     replyTarget,
     rawFrom: from,
+    transportNick: from,
     rawText: text,
     account: account || null,
+    transportAccount: account || null,
     channelModes: channelModes || {}
   };
 }

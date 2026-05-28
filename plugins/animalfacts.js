@@ -85,7 +85,7 @@ async function getAnimalFact(animal) {
 }
 
 module.exports = {
-  commands: ['catfact', 'catfacts', 'fact'],
+  commands: [{ name: 'catfact', aliases: ['catfacts'] }, 'fact'],
 
   init() {
     console.log('[animalfacts] initialized');

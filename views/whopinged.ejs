@@ -1,0 +1,33 @@
+<%- include('partials/header') %>
+<form class="search-form" method="get" action="/whopinged">
+  <label>Nickname: <input type="text" name="nick" value="<%= query.nick || '' %>"></label>
+  <button type="submit">Submit</button>
+</form>
+
+<% if (!query.nick) { %>
+  <p>Enter a nick to view tracked pings, or leave it blank to show the most recent pings.</p>
+<% } %>
+
+<p><%= pings.count %> ping<%= pings.count === 1 ? '' : 's' %> found.</p>
+
+<div class="pagination">
+  <% if (pings.page > 1) { %><a href="?page=<%= pings.page - 1 %>&nick=<%= encodeURIComponent(query.nick || '') %>">Previous</a><% } %>
+  <span>Page <%= pings.page %> of <%= pings.pages %></span>
+  <% if (pings.page < pings.pages) { %><a href="?page=<%= pings.page + 1 %>&nick=<%= encodeURIComponent(query.nick || '') %>">Next</a><% } %>
+</div>
+
+<div class="table-wrap">
+  <table>
+    <tr><th>Channel</th><th>Pinged</th><th>By</th><th>Message</th><th>Time</th></tr>
+    <% for (const ping of pings.rows) { %>
+      <tr>
+        <td><%= ping.channel %></td>
+        <td><%= ping.whowaspinged %></td>
+        <td><%= ping.whopinged %></td>
+        <td><%= ping.message %></td>
+        <td title="<%= ping.date %>"><%= ping.ago %></td>
+      </tr>
+    <% } %>
+  </table>
+</div>
+<%- include('partials/footer') %>

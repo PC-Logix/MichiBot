@@ -2,15 +2,22 @@
 
 const fs = require('fs');
 const path = require('path');
+const {
+  resetCooldown
+} = require('../libs/cooldowns');
 
 function createContextFactory({
   client,
   config,
   permissions,
   commandRegistry,
+  aliasRegistry,
   currentPrefixRef,
   extensionManager,
   registerCommand,
+  unregisterCommand,
+  registerAlias,
+  unregisterAlias,
   normalizeCommandName,
   logger,
   stateHelpers,
@@ -41,7 +48,11 @@ function createContextFactory({
   function setPrefix(newPrefix, persist = false) {
     const trimmed = String(newPrefix || '').trim();
     if (!trimmed) {
-      return { ok: false, prefix: currentPrefixRef.get(), message: 'Invalid prefix' };
+      return {
+        ok: false,
+        prefix: currentPrefixRef.get(),
+        message: 'Invalid prefix'
+      };
     }
 
     currentPrefixRef.set(trimmed);
@@ -78,7 +89,22 @@ function createContextFactory({
       }
     }
 
-    return visible.sort();
+    for (const alias of aliasRegistry.values()) {
+      if (alias.hidden) {
+        continue;
+      }
+
+      const target = commandRegistry.get(normalizeCommandName(alias.target));
+      if (!target || target.hidden) {
+        continue;
+      }
+
+      if (await permissions.canAccessAsync(ctx, target.access)) {
+        visible.push(alias.name);
+      }
+    }
+
+    return Array.from(new Set(visible)).sort();
   }
 
   function buildModulesContext() {
@@ -108,16 +134,50 @@ function createContextFactory({
 
       commands: {
         register(commandNameOrSpec, handler, extensionKey = 'runtime') {
-          registerCommand(commandNameOrSpec, handler, extensionKey);
+          return registerCommand(commandNameOrSpec, handler, extensionKey);
+        },
+        unregister(commandName, extensionKey = '') {
+          return unregisterCommand(commandName, extensionKey);
+        },
+        registerAlias(aliasSpec, targetCommand, extensionKey = 'runtime') {
+          return registerAlias(aliasSpec, targetCommand, extensionKey);
+        },
+        unregisterAlias(aliasName, extensionKey = '') {
+          return unregisterAlias(aliasName, extensionKey);
         },
         has(commandName) {
+          const normalized = normalizeCommandName(commandName);
+          return commandRegistry.has(normalized) || aliasRegistry.has(normalized);
+        },
+        hasCommand(commandName) {
           return commandRegistry.has(normalizeCommandName(commandName));
+        },
+        hasAlias(aliasName) {
+          return aliasRegistry.has(normalizeCommandName(aliasName));
         },
         list() {
           return Array.from(commandRegistry.keys()).sort();
         },
+        listAliases() {
+          return Array.from(aliasRegistry.values())
+            .map(alias => ({
+              name: alias.name,
+              target: alias.target,
+              defaultArgs: Array.isArray(alias.defaultArgs) ? alias.defaultArgs.slice() : [],
+              hidden: !!alias.hidden
+            }))
+            .sort((a, b) => a.name.localeCompare(b.name));
+        },
         async listVisible(ctx) {
           return listCommandsVisibleTo(ctx);
+        },
+        getCooldown(commandName) {
+          const command = commandRegistry.get(normalizeCommandName(commandName));
+          return command?.cooldown || null;
+        },
+        resetCooldown(commandOrKey, user = '') {
+          const command = commandRegistry.get(normalizeCommandName(commandOrKey));
+          return resetCooldown(command?.cooldown || commandOrKey, user);
         }
       },
 
@@ -149,20 +209,32 @@ function createContextFactory({
         partChannel(channelName, message = '') {
           const target = String(channelName || '').trim();
           if (!target) {
-            return { ok: false, message: 'No channel provided' };
+            return {
+              ok: false,
+              message: 'No channel provided'
+            };
           }
 
           client.part(target, message || undefined);
-          return { ok: true, message: `Parting ${target}` };
+          return {
+            ok: true,
+            message: `Parting ${target}`
+          };
         },
         joinChannel(channelName, key = '') {
           const target = String(channelName || '').trim();
           if (!target) {
-            return { ok: false, message: 'No channel provided' };
+            return {
+              ok: false,
+              message: 'No channel provided'
+            };
           }
 
           client.join(target, key || undefined);
-          return { ok: true, message: `Joining ${target}` };
+          return {
+            ok: true,
+            message: `Joining ${target}`
+          };
         },
         loadPlugin(name) {
           return extensionManager.loadExtensionByName('plugins', name);
