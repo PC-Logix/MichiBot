@@ -1,6 +1,7 @@
 'use strict';
+const inventory = require('../services/inventory');
 const {
-  pick,
+  randInt,
   text
 } = require('../utils/helper');
 const events = ["Inari's lewdness!", 'the existence of wasps!', 'E.T for Atari being terrible!', 'space being cold!',
@@ -12,10 +13,14 @@ module.exports = {
   name: 'Blame',
   commands: [{ name: 'blame', cooldown: { seconds: 5 } }],
   init() {
+    inventory.ensureSchema();
     console.log('[Blame] initialized');
   },
   async handleCommand(ctx) {
     const who = text(ctx) || ctx.nick;
-    ctx.action(ctx.replyTarget, `blames ${who} for ${pick(events)}`);
+    const roll = randInt(0, Math.floor(events.length * 1.25));
+    const randomItem = inventory.getRandomItem(true);
+    const event = events[roll] || `adding ${randomItem ? randomItem.getName() : 'nothing'} to the inventory!`;
+    ctx.action(ctx.replyTarget, `blames ${who} for ${event}`);
   }
 };

@@ -2,6 +2,7 @@
 
 const crypto = require('crypto');
 const { getDb, tableExists, getDbPath } = require('../libs/db');
+const { getHelpMetadata } = require('../libs/helpMetadata');
 
 function db() {
   return getDb();
@@ -305,44 +306,184 @@ function getPotionSummary() {
   return groups;
 }
 
-function getCommandHelp(commandRegistry, prefix, aliasRegistry) {
-  if (!commandRegistry || typeof commandRegistry.values !== 'function') return [];
 
-  const rows = Array.from(commandRegistry.values())
-    .filter(info => !info.hidden)
-    .map(info => ({
-      name: info.name,
-      usage: `${prefix}${info.name}`,
-      access: info.access || { public: true },
-      help: info.help || '',
-      extensionKey: info.extensionKey || '',
-      isAlias: false,
-      target: ''
-    }));
+function normalizeCommandName(value) {
+  return String(value || '').trim().toLowerCase();
+}
 
-  if (aliasRegistry && typeof aliasRegistry.values === 'function') {
-    for (const alias of aliasRegistry.values()) {
-      if (alias.hidden) continue;
+function getDynamicCommandRows() {
+  if (!hasTable('Commands')) return [];
 
-      const target = commandRegistry.get(alias.target);
-      if (!target || target.hidden) continue;
+  return db().prepare(`
+    SELECT command, return_value, help
+    FROM Commands
+    ORDER BY lower(command) ASC
+  `).all().map(row => ({
+    name: normalizeCommandName(row.command),
+    rawName: row.command,
+    rawCommand: row.return_value || '',
+    help: row.help || '',
+    args: '[Target:string Params:string]',
+    access: { public: true },
+    extensionKey: 'plugins:DynamicCommands.js',
+    aliases: [],
+    cooldown: null,
+    isDynamic: true
+  })).filter(row => row.name);
+}
 
-      const defaultArgs = Array.isArray(alias.defaultArgs) ? alias.defaultArgs : [];
-      const suffix = defaultArgs.length ? ` ${defaultArgs.join(' ')}` : '';
+function accessLevel(access) {
+  if (!access || access.public) return 0;
 
-      rows.push({
-        name: alias.name,
-        usage: `${prefix}${alias.name}`,
-        access: target.access || { public: true },
-        help: `Alias for ${prefix}${alias.target}${suffix}`,
-        extensionKey: alias.extensionKey || '',
-        isAlias: true,
-        target: alias.target
-      });
+  if (typeof access === 'string') {
+    const text = access.toLowerCase();
+    if (text.includes('admin')) return 3;
+    if (text.includes('mod')) return 2;
+    if (text.includes('trusted')) return 1;
+    return 0;
+  }
+
+  if (access.globalRank) {
+    const rank = String(access.globalRank).toLowerCase();
+    if (rank === 'admin') return 3;
+    if (rank === 'moderator' || rank === 'mod') return 2;
+    if (rank === 'trusted') return 1;
+  }
+
+  if (access.channelMode) return 2;
+
+  if (Array.isArray(access.anyOf) && access.anyOf.length) {
+    return Math.min(...access.anyOf.map(accessLevel));
+  }
+
+  if (Array.isArray(access.allOf) && access.allOf.length) {
+    return Math.max(...access.allOf.map(accessLevel));
+  }
+
+  return 0;
+}
+
+function accessLabel(access) {
+  const level = accessLevel(access);
+  if (level >= 3) return 'Admin';
+  if (level === 2) return 'Moderator';
+  if (level === 1) return 'Trusted';
+  return 'Anyone';
+}
+
+function normalizePermFilter(value) {
+  const text = String(value || 'Anyone').trim().toLowerCase();
+  if (text === 'admin') return { label: 'Admin', level: 3 };
+  if (text === 'moderator' || text === 'mod') return { label: 'Moderator', level: 2 };
+  if (text === 'trusted') return { label: 'Trusted', level: 1 };
+  return { label: 'Anyone', level: 0 };
+}
+
+function cooldownParts(cooldown) {
+  if (!cooldown) return [];
+
+  const seconds = Number(cooldown.seconds || 0) +
+    (Number(cooldown.minutes || 0) * 60) +
+    (Number(cooldown.hours || 0) * 3600) +
+    (Number(cooldown.days || 0) * 86400);
+
+  if (seconds > 0) {
+    return [`Cooldown: ${formatDuration(seconds * 1000).replace(/\s+/g, ' ')}`];
+  }
+
+  if (cooldown.key) return ['Cooldown: shared'];
+  return [];
+}
+
+function commandAliases(commandName, aliasRegistry, prefix) {
+  if (!aliasRegistry || typeof aliasRegistry.values !== 'function') return [];
+
+  const targetName = normalizeCommandName(commandName);
+  const aliases = [];
+
+  for (const alias of aliasRegistry.values()) {
+    if (alias.hidden) continue;
+    if (normalizeCommandName(alias.target) !== targetName) continue;
+
+    const defaultArgs = Array.isArray(alias.defaultArgs) ? alias.defaultArgs : [];
+    aliases.push({
+      name: alias.name,
+      usage: `${prefix}${alias.name}`,
+      target: alias.target,
+      defaultArgs,
+      display: `${prefix}${alias.name}${defaultArgs.length ? ` → ${prefix}${alias.target} ${defaultArgs.join(' ')}` : ''}`
+    });
+  }
+
+  return aliases.sort((a, b) => a.name.localeCompare(b.name));
+}
+
+function buildHelpRow(info, prefix, aliasRegistry, options = {}) {
+  const name = normalizeCommandName(info.name || info.rawName);
+  const meta = getHelpMetadata(name) || {};
+  const aliases = options.aliases || commandAliases(name, aliasRegistry, prefix);
+  const access = info.access || { public: true };
+  const permission = accessLabel(access);
+  const extra = [`Permission: ${permission}`].concat(cooldownParts(info.cooldown || null));
+
+  let help = String(info.help || meta.help || '').trim();
+  if (!help && options.rawCommand) {
+    help = 'No description, raw command:';
+  }
+
+  return {
+    name,
+    usage: `${prefix}${name}`,
+    help,
+    args: info.args || info.arguments || meta.args || '',
+    access,
+    accessLabel: permission,
+    accessLevel: accessLevel(access),
+    extra,
+    cooldown: info.cooldown || null,
+    extensionKey: info.extensionKey || '',
+    aliases,
+    rawCommand: options.rawCommand || '',
+    isDynamic: !!options.isDynamic
+  };
+}
+
+function getCommandHelp(commandRegistry, prefix, aliasRegistry, options = {}) {
+  const permFilter = normalizePermFilter(options.permFilter);
+  const dynamicRows = getDynamicCommandRows();
+  const dynamicNames = new Set(dynamicRows.map(row => row.name));
+  const normal = [];
+
+  if (commandRegistry && typeof commandRegistry.values === 'function') {
+    for (const info of commandRegistry.values()) {
+      if (info.hidden) continue;
+
+      const name = normalizeCommandName(info.name);
+      const isRuntimeDynamic = dynamicNames.has(name);
+      if (isRuntimeDynamic) continue;
+
+      const row = buildHelpRow(info, prefix, aliasRegistry);
+      if (row.accessLevel <= permFilter.level) normal.push(row);
     }
   }
 
-  return rows.sort((a, b) => a.name.localeCompare(b.name));
+  const dynamic = dynamicRows
+    .map(row => buildHelpRow(row, prefix, aliasRegistry, {
+      rawCommand: row.rawCommand,
+      isDynamic: true,
+      aliases: []
+    }))
+    .filter(row => row.accessLevel <= permFilter.level);
+
+  normal.sort((a, b) => a.name.localeCompare(b.name));
+  dynamic.sort((a, b) => a.name.localeCompare(b.name));
+
+  return {
+    normal,
+    dynamic,
+    permFilter,
+    total: normal.length + dynamic.length
+  };
 }
 
 module.exports = {

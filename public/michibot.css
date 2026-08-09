@@ -247,3 +247,43 @@ button[disabled] {
   cursor: not-allowed;
   opacity: 0.55;
 }
+
+.help-notes {
+  margin-top: 0.25rem;
+  color: var(--muted);
+}
+
+.permission-filter {
+  margin-bottom: 0;
+}
+
+.help-table td,
+.help-table th {
+  vertical-align: top;
+}
+
+.command-cell,
+.alias-cell {
+  white-space: nowrap;
+}
+
+.alias-cell div {
+  margin-bottom: 0.25rem;
+}
+
+.help-extra {
+  color: var(--muted);
+  font-size: 0.92rem;
+  margin-top: 0.35rem;
+}
+
+.raw-command {
+  word-break: break-word;
+}
+
+.section-row th {
+  text-align: left;
+  font-size: 1.1rem;
+  background: var(--accent);
+  color: var(--panel);
+}

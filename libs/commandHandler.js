@@ -5,6 +5,7 @@ const {
   updateCooldown,
   formatCooldownFailMessage
 } = require('./cooldowns');
+const ignoreList = require('../services/ignoreList');
 
 function normalizeCommandName(name) {
   return String(name || '').trim().toLowerCase();
@@ -341,6 +342,29 @@ async function handleMessage({
   log(`${normalized.to} <${logName}> ${normalized.text}`);
 
   const baseContext = buildContext();
+
+  const ignoredContext = buildRuntimeContext(baseContext, normalized);
+  let ignored = ignoreList.isIgnored(normalized.nick);
+  if (!ignored && ignoredContext.isBridge &&
+    typeof baseContext.permissions.getPermissionSubjectsForContext === 'function') {
+    const subjects = await baseContext.permissions.getPermissionSubjectsForContext(ignoredContext);
+    ignored = subjects.some(subject => {
+      const match = String(subject || '').match(/^discord:(\d+)$/i);
+      return !!match && ignoreList.isIgnored(match[1]);
+    });
+  }
+
+  if (ignored) {
+    if (!ignoredContext.isBridge && !ignoredContext.account &&
+      typeof baseContext?.bot?.refreshAccount === 'function') {
+      ignoredContext.account = await baseContext.bot.refreshAccount(ignoredContext.nick);
+    }
+    const isAdmin = await baseContext.permissions.canAccessAsync(
+      ignoredContext,
+      { globalRank: 'Admin' }
+    );
+    if (!isAdmin) return;
+  }
 
   await dispatchPassiveListeners({
     loadedExtensions,

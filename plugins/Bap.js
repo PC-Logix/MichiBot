@@ -1,7 +1,7 @@
 'use strict';
+const inventory = require('../services/inventory');
 const {
   act,
-  itemOrRandom,
   normalizeSelfTarget,
   parseTargetAndItem,
   say
@@ -10,6 +10,7 @@ module.exports = {
   name: 'Bap',
   commands: ['bap'],
   init() {
+    inventory.ensureSchema();
     console.log('[Bap] initialized');
   },
   async handleCommand(ctx) {
@@ -19,7 +20,8 @@ module.exports = {
     } = parseTargetAndItem(ctx);
     if (!target) return act(ctx, `${ctx.nick} flails at the darkness`);
     target = normalizeSelfTarget(target, ctx.nick);
-    const it = itemOrRandom(item);
+    const inventoryItem = item ? inventory.createLooseItem(item) : inventory.getRandomItem(false);
+    const it = inventoryItem ? inventoryItem.getName(true) : '';
     if (/^no(pe)?$/i.test(target)) return act(ctx, `smacks ${ctx.nick}!`);
     if (target.toLowerCase() === ctx.nick.toLowerCase()) say(ctx,
       `${ctx.nick} baps themselves${it?` with ${it}`:''}!`);

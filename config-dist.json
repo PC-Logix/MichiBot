@@ -56,9 +56,37 @@
   "dynamicCommands": {
     "webWrites": false
   },
+  "integrations": {
+    "github": {
+      "token": ""
+    },
+    "youtube": {
+      "apiKey": ""
+    }
+  },
   "luaSandbox": {
     "timeoutMs": 3500,
     "maxMessageLength": 420,
     "maxOutputLength": 2000
+  },
+  "jsSandbox": {
+    "timeoutMs": 1000,
+    "maxMessageLength": 420,
+    "maxOutputLength": 2000,
+    "maxScriptLength": 8000
+  },
+  "auth": {
+    "sasl": {
+      "enabled": false,
+      "account": "",
+      "password": "",
+      "mechanism": "PLAIN",
+      "disconnectOnFail": true
+    },
+    "seedWhoisOnJoin": false,
+    "whoisOnJoin": false,
+    "whoisQueueDelayMs": 2500,
+    "whoisTimeoutMs": 2500,
+    "maxSeedWhoisPerChannel": 5
   }
 }

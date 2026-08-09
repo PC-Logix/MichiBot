@@ -21,6 +21,111 @@ function act(ctx, message) {
   ctx.action(ctx.replyTarget || ctx.to, String(message));
 }
 
+function antiPing(value) {
+  const input = String(value || '');
+  const midpoint = Math.floor(input.length / 2);
+  return `${input.slice(0, midpoint)}\u200B${input.slice(midpoint)}`;
+}
+
+function addressedSay(ctx, message, nick = ctx.nick) {
+  say(ctx, `${antiPing(nick)}: ${message}`);
+}
+
+function escapeRegex(value) {
+  return String(value || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function solvePrefixes(value) {
+  const input = String(value || '');
+  const countersA = ['a', 'an', 'the', 'a whole lot of', 'many', 'a lot of', 'a number of'];
+  const countersTwenty = ['twenty', 'thirty', 'forty', 'fifty', 'sixty', 'seventy', 'eighty', 'ninety'];
+  const countersOne = [
+    'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten',
+    'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen', 'seventeen',
+    'eighteen', 'nineteen'
+  ];
+  const countersHundred = [
+    'hundred', 'thousand', 'million', 'milliard', 'billion', 'billiard', 'trillion',
+    'quadrillion', 'quintillion', 'sextillion', 'septillion', 'octillion', 'nonillion',
+    'decillion', 'undecillion', 'duodecillion', 'tredecillion', 'quattuordecillion',
+    'quindecillion', 'sexdecillion', 'septendecillion', 'octodecillion',
+    'novemdecillion', 'vigintillion', 'centillion'
+  ];
+
+  function matchPrefix(prefix) {
+    const match = input.match(new RegExp(`^(${escapeRegex(prefix)}) (.*)$`, 'i'));
+    return match ? [match[1], match[2]] : null;
+  }
+
+  for (const prefix of countersA) {
+    const match = matchPrefix(prefix);
+    if (!match) continue;
+    for (const suffix of countersHundred) {
+      const compound = matchPrefix(`${prefix} ${suffix}`);
+      if (compound) return compound;
+    }
+    return match;
+  }
+
+  for (const prefix of countersOne) {
+    const match = matchPrefix(prefix);
+    if (!match) continue;
+    for (const suffix of countersHundred) {
+      const compound = matchPrefix(`${prefix} ${suffix}`);
+      if (compound) return compound;
+    }
+    return match;
+  }
+
+  for (const prefix of countersTwenty) {
+    const match = matchPrefix(prefix);
+    if (!match) continue;
+    for (const one of countersOne) {
+      const compound = matchPrefix(`${prefix} ${one}`);
+      if (!compound) continue;
+      for (const suffix of countersHundred) {
+        const extended = matchPrefix(`${prefix} ${one} ${suffix}`);
+        if (extended) return extended;
+      }
+      return compound;
+    }
+    for (const suffix of countersHundred) {
+      const compound = matchPrefix(`${prefix} ${suffix}`);
+      if (compound) return compound;
+    }
+    return match;
+  }
+
+  return null;
+}
+
+function antiPingMessage(message, nicks) {
+  let output = String(message || '');
+  const names = Array.isArray(nicks) ? nicks.filter(Boolean).map(String) : [];
+
+  for (const part of output.split(' ')) {
+    if (!part || /^https?:\/\//i.test(part)) continue;
+
+    const containsNick = names.some(nick =>
+      new RegExp(`\\b${escapeRegex(nick)}\\b`, 'i').test(part)
+    );
+    if (!containsNick) continue;
+
+    output = output.replace(new RegExp(escapeRegex(part), 'gi'), antiPing(part));
+  }
+
+  return output;
+}
+
+function splitLegacyMessage(message, lineSize = 320) {
+  const input = String(message || '');
+  if (input.length <= lineSize) return [input.trim()];
+
+  const pattern = new RegExp(`\\b.{1,${Math.max(1, lineSize - 1)}}\\b\\W?`, 'g');
+  const matches = input.match(pattern);
+  return matches && matches.length ? matches.map(part => part.trim()) : [input.trim()];
+}
+
 function randInt(min, max) {
   const lo = Math.ceil(min);
   const hi = Math.floor(max);
@@ -195,6 +300,9 @@ module.exports = {
   IRC_BOLD,
   IRC_RESET,
   act,
+  addressedSay,
+  antiPing,
+  antiPingMessage,
   diceSidesFromItem,
   doesTargetConsent,
   fetchJson,
@@ -211,6 +319,8 @@ module.exports = {
   safeCalc,
   say,
   shuffle,
+  solvePrefixes,
+  splitLegacyMessage,
   stripIrcFormatting,
   text
 };

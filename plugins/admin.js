@@ -12,6 +12,8 @@ function safeRequireHelper() {
 }
 
 const helper = safeRequireHelper();
+const { getHelpMetadata } = require('../libs/helpMetadata');
+const ignoreList = require('../services/ignoreList');
 
 const adminAccess = {
   globalRank: 'Admin'
@@ -44,7 +46,15 @@ const commandSpecs = [
     name: 'listcommands',
     access: {
       public: true
-    }
+    },
+    aliases: ['commands']
+  },
+  {
+    name: 'help',
+    access: {
+      public: true
+    },
+    aliases: ['syntax']
   },
   {
     name: 'listaliases',
@@ -97,6 +107,18 @@ const commandSpecs = [
   {
     name: 'ram',
     access: adminAccess
+  },
+  {
+    name: 'ignore',
+    access: adminAccess
+  },
+  {
+    name: 'unignore',
+    access: adminAccess
+  },
+  {
+    name: 'ignorelist',
+    access: adminAccess
   }
 ];
 
@@ -118,6 +140,44 @@ function fullText(ctx) {
 
 function usage(ctx, text) {
   return reply(ctx, `Usage: ${getPrefix(ctx)}${text}`);
+}
+
+
+function commandUrl(ctx) {
+  const base = String(ctx?.config?.http?.baseDomain || ctx?.config?.httpdBaseDomain || '').replace(/\/+$/, '');
+  return base ? `${base}/help` : '';
+}
+
+function formatCommandHelp(ctx, commandName) {
+  const requested = String(commandName || '').trim().replace(/^#+/, '').toLowerCase();
+  if (!requested) {
+    const url = commandUrl(ctx);
+    return url ? `Help: ${url}` : `Usage: ${getPrefix(ctx)}help <command>`;
+  }
+
+  let name = requested;
+  let aliasNote = '';
+  const alias = ctx.commands.getAlias ? ctx.commands.getAlias(requested) : null;
+  if (alias) {
+    const defaults = alias.defaultArgs && alias.defaultArgs.length ? ` ${alias.defaultArgs.join(' ')}` : '';
+    aliasNote = ` Alias for ${getPrefix(ctx)}${alias.target}${defaults}.`;
+    name = alias.target;
+  }
+
+  const command = ctx.commands.get ? ctx.commands.get(name) : null;
+  if (!command) {
+    return `No help found for ${getPrefix(ctx)}${requested}.`;
+  }
+
+  const meta = getHelpMetadata(name) || {};
+  const help = command.help || meta.help || 'No help text set for this command.';
+  const args = meta.args ? ` Arguments: ${meta.args}.` : '';
+  const aliases = ctx.commands.listAliases()
+    .filter(item => item.target === name && !item.hidden)
+    .map(item => `${getPrefix(ctx)}${item.name}${item.defaultArgs.length ? `→${getPrefix(ctx)}${item.target} ${item.defaultArgs.join(' ')}` : ''}`);
+  const aliasText = aliases.length ? ` Aliases: ${aliases.join(', ')}.` : '';
+
+  return `${getPrefix(ctx)}${name}: ${help}${args}${aliasNote}${aliasText}`;
 }
 
 
@@ -235,6 +295,7 @@ module.exports = {
   init(ctx) {
     bot = ctx.bot;
     admin = ctx.modules?.admin;
+    ignoreList.ensureSchema();
     console.log('[admin-plugin] initialized');
   },
 
@@ -253,10 +314,15 @@ module.exports = {
         return reply(ctx, `Plugins: ${plugins.join(', ') || '(none)'}`);
       }
 
-      case 'listcommands': {
+      case 'listcommands':
+      case 'commands': {
         const visible = await admin.listVisibleCommands(ctx);
         return reply(ctx, `Commands: ${visible.join(', ') || '(none)'}`);
       }
+
+      case 'help':
+      case 'syntax':
+        return reply(ctx, formatCommandHelp(ctx, getArg(ctx, 0)));
 
       case 'listaliases': {
         const aliases = ctx.commands.listAliases()
@@ -359,6 +425,23 @@ module.exports = {
           ctx,
           `RSS ${Math.round(m.rss / 1048576)} MB, heap ${Math.round(m.heapUsed / 1048576)}/${Math.round(m.heapTotal / 1048576)} MB`
         );
+      }
+
+      case 'ignore': {
+        const nick = getArg(ctx, 0);
+        if (!nick) return usage(ctx, 'ignore <nick>');
+        return reply(ctx, ignoreList.add(nick) ? 'User added to ignore list' : 'User is already ignored.');
+      }
+
+      case 'unignore': {
+        const nick = getArg(ctx, 0);
+        if (!nick) return usage(ctx, 'unignore <nick>');
+        return reply(ctx, ignoreList.remove(nick) ? 'User removed from ignore list' : 'User was not ignored.');
+      }
+
+      case 'ignorelist': {
+        const users = ignoreList.list().map(row => row.username);
+        return reply(ctx, `Ignored Users: ${users.join(', ') || '(none)'}`);
       }
     }
   }

@@ -4,6 +4,65 @@ const {
   handleMessage
 } = require('../libs/commandHandler');
 
+function getExtensions(extensionManager) {
+  const loaded = extensionManager.getLoadedExtensions();
+
+  if (!loaded) {
+    return [];
+  }
+
+  if (loaded instanceof Map) {
+    return Array.from(loaded.values());
+  }
+
+  if (Array.isArray(loaded)) {
+    return loaded;
+  }
+
+  if (typeof loaded === 'object') {
+    return Object.values(loaded);
+  }
+
+  return [];
+}
+
+async function dispatchExtensionEvent({
+  extensionManager,
+  logger,
+  handlerNames,
+  event,
+  extra = {}
+}) {
+  const extensions = getExtensions(extensionManager);
+
+  for (const runtimeInfo of extensions) {
+    if (!runtimeInfo) {
+      continue;
+    }
+
+    const extension = runtimeInfo.module || runtimeInfo;
+
+    for (const handlerName of handlerNames) {
+      const handler = extension[handlerName];
+
+      if (typeof handler !== 'function') {
+        continue;
+      }
+
+      try {
+        await handler.call(extension, event, extra);
+      } catch (err) {
+        logger.error(
+          `[michibot] ${handlerName} failed in ${extension.name || runtimeInfo.fileName || extension.filename || 'unknown extension'}:`,
+          err
+        );
+      }
+
+      break;
+    }
+  }
+}
+
 function bindIrcEvents({
   client,
   config,
@@ -77,7 +136,7 @@ function bindIrcEvents({
     stateHelpers.seedWhoisForChannel(channelName, users);
   });
 
-  client.on('join', (event) => {
+  client.on('join', async (event) => {
     const channelName = String(event?.channel || '').trim();
     const nick = String(event?.nick || '').trim();
     if (!channelName || !nick) return;
@@ -87,8 +146,24 @@ function bindIrcEvents({
     if (event.account && event.account !== '*') {
       accountState.setAccount(nick, event.account);
     } else {
-      stateHelpers.maybeSeedWhoisForUser(nick, `join:${channelName}`);
+      stateHelpers.maybeWhoisJoinedUser(nick, `join:${channelName}`);
     }
+
+    await dispatchExtensionEvent({
+      extensionManager,
+      logger,
+      handlerNames: [
+        'handleJoin',
+        'onJoin'
+      ],
+      event,
+      extra: {
+        client,
+        config,
+        currentPrefix: currentPrefixRef.get(),
+        buildContext
+      }
+    });
   });
 
   client.on('part', (event) => {
@@ -162,6 +237,47 @@ function bindIrcEvents({
 
   client.on('error', (err) => {
     logger.error('IRC error:', err);
+  });
+
+  client.on('notice', async (event) => {
+    await dispatchExtensionEvent({
+      extensionManager,
+      logger,
+      handlerNames: [
+        'handleNotice',
+        'onNotice',
+        'notice'
+      ],
+      event,
+      extra: {
+        client,
+        config,
+        currentPrefix: currentPrefixRef.get(),
+        commandRegistry,
+        aliasRegistry,
+        buildContext,
+        normalizeMessage,
+        reply
+      }
+    });
+  });
+
+  client.on('action', async (event) => {
+    await dispatchExtensionEvent({
+      extensionManager,
+      logger,
+      handlerNames: [
+        'handleAction',
+        'onAction'
+      ],
+      event,
+      extra: {
+        client,
+        config,
+        currentPrefix: currentPrefixRef.get(),
+        buildContext
+      }
+    });
   });
 
   client.on('message', async (event) => {

@@ -9,6 +9,11 @@ function findUrls(s) {
   return String(s || '').match(/https?:\/\/[^\s<>]+/ig) || [];
 }
 
+function hasSpecializedExpander(url) {
+  return /(?:^|\.)youtu(?:be\.com|\.be)\//i.test(new URL(url).hostname + new URL(url).pathname) ||
+    /github\.com\/[^/]+\/[^/]+\/(?:issues|pull)\/\d+/i.test(url);
+}
+
 function titleOf(html) {
   const m = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
   return m ? m[1].replace(/\s+/g, ' ').trim().replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>') : '';
@@ -21,6 +26,7 @@ module.exports = {
   async onMessage(ctx) {
     const urls = findUrls(stripIrcFormatting(ctx.text));
     for (const url of urls.slice(0, 2)) {
+      if (hasSpecializedExpander(url)) continue;
       const old = seen.get(url);
       if (old && Date.now() - old < 300000) continue;
       seen.set(url, Date.now());

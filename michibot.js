@@ -36,6 +36,11 @@ const {
 const {
   createWebServer
 } = require('./web/server');
+const {
+  closeDb,
+  checkpointDb
+} = require('./libs/db');
+const { buildIrcConnectionOptions } = require('./core/connectOptions');
 
 const REQUESTED_CAPS = [
   'account-notify',
@@ -267,7 +272,8 @@ const stateHelpers = createStateHelpers({
   channelState,
   normalizeCommandName,
   client,
-  logger
+  logger,
+  config
 });
 
 let extensionManager;
@@ -336,6 +342,52 @@ bindIrcEvents({
   reply: contextFactory.reply
 });
 
+
+let shuttingDown = false;
+
+function shutdown(signal) {
+  if (shuttingDown) {
+    process.exit(1);
+    return;
+  }
+
+  shuttingDown = true;
+  logger.warn(`${signal} received; shutting down`);
+
+  try {
+    if (stateHelpers && typeof stateHelpers.dispose === 'function') stateHelpers.dispose();
+  } catch (err) {
+    logger.error('Error disposing state helpers:', err);
+  }
+
+  try {
+    if (client && typeof client.quit === 'function') client.quit('Shutting down');
+  } catch (err) {
+    logger.error('Error sending IRC quit:', err);
+  }
+
+  try {
+    checkpointDb();
+    closeDb();
+  } catch (err) {
+    logger.error('Error closing SQLite database:', err);
+  }
+
+  process.exit(0);
+}
+
+process.once('SIGINT', () => shutdown('SIGINT'));
+process.once('SIGTERM', () => shutdown('SIGTERM'));
+process.once('SIGHUP', () => shutdown('SIGHUP'));
+process.once('beforeExit', () => {
+  try {
+    checkpointDb();
+    closeDb();
+  } catch (err) {
+    logger.error('Error closing SQLite database:', err);
+  }
+});
+
 capabilityManager.useMiddleware();
 
 (async () => {
@@ -344,14 +396,5 @@ capabilityManager.useMiddleware();
 
   webServer.start();
 
-  client.connect({
-    host: config.server,
-    port: config.port || (config.secure ? 6697 : 6667),
-    nick: config.userName,
-    username: config.userName,
-    gecos: config.realName || config.userName,
-    tls: !!config.secure,
-    rejectUnauthorized: !config.selfSigned,
-    auto_reconnect: config.autoRejoin !== false
-  });
+  client.connect(buildIrcConnectionOptions(config));
 })();

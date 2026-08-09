@@ -158,6 +158,13 @@ function createContextFactory({
         list() {
           return Array.from(commandRegistry.keys()).sort();
         },
+        get(commandName) {
+          const normalized = normalizeCommandName(commandName);
+          return commandRegistry.get(normalized) || null;
+        },
+        getAlias(aliasName) {
+          return aliasRegistry.get(normalizeCommandName(aliasName)) || null;
+        },
         listAliases() {
           return Array.from(aliasRegistry.values())
             .map(alias => ({

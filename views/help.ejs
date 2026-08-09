@@ -1,19 +1,70 @@
 <%- include('partials/header') %>
+
 <div class="card">
-  <p>Available commands for <%= botNick %>. This is generated from MichiBot's loaded command registry.</p>
+  <p>Command syntax works as follows:</p>
+  <ul class="help-notes">
+    <li>Arguments encased within <code>[]</code> are optional and may be omitted. Optional arguments are ordered.</li>
+    <li>Certain commands accept keywords for some arguments, such as <code>random</code>, which can change how the command behaves.</li>
+    <li>Certain commands substitute missing arguments. For example, missing targets or items may use random ones.</li>
+    <li>Argument types include <strong>Integer</strong>, <strong>List</strong>, <strong>String</strong>, <strong>Boolean</strong>, and <strong>Double</strong>.</li>
+  </ul>
+
+  <p class="permission-filter">
+    Permission filter:
+    <% for (const filter of ['Anyone', 'Trusted', 'Moderator', 'Admin']) { %>
+      <% if (commands.permFilter.label === filter) { %>
+        <strong><%= filter %></strong>
+      <% } else { %>
+        <a href="/help?permFilter=<%= encodeURIComponent(filter) %>"><%= filter %></a>
+      <% } %>
+      <% if (filter !== 'Admin') { %> | <% } %>
+    <% } %>
+  </p>
 </div>
 
+<% function renderHelpRows(rows) { %>
+  <% for (const command of rows) { %>
+    <tr>
+      <td class="command-cell"><code><%= command.usage %></code></td>
+      <td>
+        <% if (command.rawCommand) { %>
+          <span class="muted"><%= command.help || 'No description, raw command:' %></span>
+          <span class="raw-command"><%= command.rawCommand %></span>
+        <% } else if (command.help) { %>
+          <%= command.help %>
+        <% } else { %>
+          <span class="muted">No help text set for this command.</span>
+        <% } %>
+
+        <% if (command.args) { %>
+          <div class="help-extra">Argument<%= String(command.args).includes(' ') ? 's' : '' %>: <code><%= command.args %></code></div>
+        <% } %>
+
+        <div class="help-extra"><%= command.extra.join(' | ') %></div>
+      </td>
+      <td class="alias-cell">
+        <% if (command.aliases && command.aliases.length) { %>
+          <% for (const alias of command.aliases) { %>
+            <div><code><%= alias.display %></code></div>
+          <% } %>
+        <% } else { %>
+          <span class="muted">&nbsp;</span>
+        <% } %>
+      </td>
+    </tr>
+  <% } %>
+<% } %>
+
 <div class="table-wrap">
-  <table>
-    <tr><th>Command</th><th>Usage</th><th>Plugin / Module</th><th>Access</th></tr>
-    <% for (const command of commands) { %>
-      <tr>
-        <td><%= command.name %></td>
-        <td><code><%= command.usage %></code></td>
-        <td><%= command.extensionKey %></td>
-        <td><code><%= JSON.stringify(command.access) %></code></td>
-      </tr>
+  <table class="help-table">
+    <tr><th>Command</th><th>Help</th><th>Aliases</th></tr>
+    <% renderHelpRows(commands.normal); %>
+
+    <% if (commands.dynamic.length) { %>
+      <tr class="section-row"><th colspan="3">Dynamic commands</th></tr>
+      <% renderHelpRows(commands.dynamic); %>
     <% } %>
   </table>
 </div>
+
 <%- include('partials/footer') %>

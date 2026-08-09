@@ -1,7 +1,8 @@
 'use strict';
 
 const vm = require('vm');
-const { getDb, tableExists } = require('../libs/db');
+const { getDb } = require('../libs/db');
+const inventory = require('../services/inventory');
 const { say, act, text, pick } = require('../utils/helper');
 const { runLuaSnippet } = require('../utils/luaSandbox');
 
@@ -149,15 +150,8 @@ function deleteCommand(command) {
 
 function randomInventoryItem() {
   try {
-    if (!tableExists(db(), 'Inventory')) return null;
-    const rows = db().prepare(`
-      SELECT item_name
-      FROM Inventory
-      WHERE item_name IS NOT NULL AND TRIM(item_name) <> ''
-    `).all();
-
-    if (!rows.length) return null;
-    return pick(rows).item_name;
+    const item = inventory.getRandomItem(true, true);
+    return item ? item.getNameRaw() : null;
   } catch (_) {
     return null;
   }

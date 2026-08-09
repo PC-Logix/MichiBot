@@ -290,6 +290,57 @@ function savePermissions() {
   }
 }
 
+function canonicalRankName(rankName) {
+  const wanted = norm(rankName);
+  return rankOrder.find(name => norm(name) === wanted) || '';
+}
+
+function addSubjectToRank(subject, rankName) {
+  const normalizedSubject = normalizeStoredSubject(subject);
+  const canonicalRank = canonicalRankName(rankName);
+  if (!normalizedSubject) throw new Error('Invalid permission subject.');
+  if (!canonicalRank) throw new Error(`Unknown rank '${rankName}'. Use ${rankOrder.join(', ')}.`);
+
+  let rank = permissions.ranks.find(item => norm(item?.name) === norm(canonicalRank));
+  if (!rank) {
+    rank = { name: canonicalRank, users: [] };
+    permissions.ranks.push(rank);
+  }
+  if (!Array.isArray(rank.users)) rank.users = [];
+  if (rank.users.some(item => subjectKey(item) === subjectKey(normalizedSubject))) return false;
+  rank.users.push(normalizedSubject);
+  savePermissions();
+  return true;
+}
+
+function removeSubjectFromRank(subject, rankName = '') {
+  const normalizedSubject = normalizeStoredSubject(subject);
+  if (!normalizedSubject) throw new Error('Invalid permission subject.');
+  const canonicalRank = rankName ? canonicalRankName(rankName) : '';
+  if (rankName && !canonicalRank) throw new Error(`Unknown rank '${rankName}'. Use ${rankOrder.join(', ')}.`);
+
+  let removed = 0;
+  for (const rank of permissions.ranks) {
+    if (canonicalRank && norm(rank?.name) !== norm(canonicalRank)) continue;
+    const before = Array.isArray(rank?.users) ? rank.users.length : 0;
+    rank.users = (Array.isArray(rank?.users) ? rank.users : [])
+      .filter(item => subjectKey(item) !== subjectKey(normalizedSubject));
+    removed += before - rank.users.length;
+  }
+  if (removed) savePermissions();
+  return removed;
+}
+
+function listRankAssignments() {
+  return permissions.ranks
+    .map(rank => ({
+      name: String(rank?.name || ''),
+      users: (Array.isArray(rank?.users) ? rank.users : []).slice().sort((a, b) => a.localeCompare(b))
+    }))
+    .filter(rank => rank.name)
+    .sort((a, b) => rankLevel(a.name) - rankLevel(b.name));
+}
+
 function getPermissions() {
   return permissions;
 }
@@ -558,7 +609,11 @@ module.exports = {
   subjectsHaveAtLeastRank,
   accountHasRank,
   accountHasAtLeastRank,
+  addSubjectToRank,
+  canonicalRankName,
   getPermissionSubjectsForContext,
+  listRankAssignments,
+  removeSubjectFromRank,
   canAccess,
   canAccessAsync,
   isAdmin

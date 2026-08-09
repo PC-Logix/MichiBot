@@ -69,7 +69,9 @@ function createWebServer({
   app.get('/help', (req, res) => {
     res.render('help', {
       title: 'Help',
-      commands: data.getCommandHelp(commandRegistry, res.locals.prefix, aliasRegistry)
+      commands: data.getCommandHelp(commandRegistry, res.locals.prefix, aliasRegistry, {
+        permFilter: req.query.permFilter
+      })
     });
   });
 

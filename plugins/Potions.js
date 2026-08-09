@@ -570,8 +570,45 @@ function baseDomain(ctx) {
   return ctx.config?.http?.baseDomain || ctx.config?.httpdBaseDomain || '';
 }
 
+function resolvePotion(input, targetName, triggererName, splash = false) {
+  const potion = getPotionFromString(input);
+  const effect = getEffectForPotion(potion, targetName, triggererName, splash);
+  return { potion, effect };
+}
+
+function renderResolvedPotion(resolved, targetName, triggererName, splash = false, prefix = '#') {
+  if (!resolved?.potion || !resolved?.effect) return 'No effect.';
+  const template = splash ? (resolved.effect.splash || resolved.effect.drink) : resolved.effect.drink;
+  return renderEffect(template, {
+    user: targetName,
+    triggerer: triggererName,
+    consistency: resolved.potion.consistency,
+    appearance: resolved.potion.appearance,
+    splash,
+    prefix
+  });
+}
+
+function resolvedPotionDescription(resolved) {
+  if (!resolved?.potion) return 'mysterious potion';
+  return `${withPrefix(resolved.potion.consistency, true)} ${resolved.potion.appearance.name.toLowerCase()} potion`;
+}
+
+function renderTemplate(template, options = {}) {
+  const normalizedTemplate = String(template || '')
+    .replace(/\{p_transformation\}/g, '{transformation_p}');
+  return renderEffect(normalizedTemplate, options);
+}
+
 module.exports = {
   name: 'Potions',
+
+  api: Object.freeze({
+    renderTemplate,
+    renderResolvedPotion,
+    resolvePotion,
+    resolvedPotionDescription
+  }),
 
   commands: [
     {
