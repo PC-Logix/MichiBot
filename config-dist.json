@@ -64,6 +64,9 @@
       "apiKey": ""
     }
   },
+  "rpg": {
+    "story": "crossroads"
+  },
   "luaSandbox": {
     "timeoutMs": 3500,
     "maxMessageLength": 420,

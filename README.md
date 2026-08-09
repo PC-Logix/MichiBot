@@ -63,3 +63,9 @@ Some Java hook names map to consolidated JavaScript components:
 The intentionally retired integrations are GeoIP, Minecraft server information/status, search providers, translation, Twitter, and Wolfram Alpha.
 
 The JavaScript sandbox requires Node.js 22 or newer. Each snippet runs in a fresh permission-restricted child process with time, memory, output, and code-generation limits. Configure it with `jsSandbox` in `config.json`.
+
+## RPG story packs
+
+The optional RPG is a persistent, IRC-friendly MUD. Its rooms, exits, descriptions, encounter tables, monsters, and map text are defined by JSON story packs in `resources/rpg/stories/`. Copy `crossroads.json`, give the file and its `id` a new matching name, and edit the world without changing JavaScript.
+
+Select the initial pack with `rpg.story` in `config.json` or the `MICHIBOT_RPG_STORY` environment variable. While the bot is running, an admin can use `rpg story <id>` to switch packs or `rpg reloadstory` after editing the active JSON. Switching stories sends each player to the new entrance on their next RPG command while preserving character stats, XP, gold, and victories.

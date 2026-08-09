@@ -1,0 +1,59 @@
+{
+  "id": "clockwork_cellar",
+  "title": "The Clockwork Cellar",
+  "intro": "The town clock has begun striking thirteen. Its retired maker swears the trouble is coming from the workshop cellar, where no machine should still be running.",
+  "startRoom": "workshop",
+  "mapText": "Map: Workshop descends to Cellar Landing; west is the Boiler Room, east is the Parts Store, and below waits the Heart Chamber.",
+  "rooms": {
+    "workshop": {
+      "name": "The Abandoned Workshop",
+      "description": "Stopped clocks cover every wall, though one second hand twitches whenever you look away.",
+      "safe": true,
+      "exits": { "down": "cellar_landing" }
+    },
+    "cellar_landing": {
+      "name": "The Cellar Landing",
+      "description": "Copper pipes shiver beneath the floor and oily footprints split in three directions.",
+      "exits": { "up": "workshop", "west": "boiler_room", "east": "parts_store", "down": "heart_chamber" },
+      "encounters": ["clockrat", "spring_imp"]
+    },
+    "boiler_room": {
+      "name": "The Boiler Room",
+      "description": "A brass furnace breathes red light through rows of riveted teeth.",
+      "exits": { "east": "cellar_landing" },
+      "encounters": ["spring_imp", "brass_hound"]
+    },
+    "parts_store": {
+      "name": "The Parts Store",
+      "description": "Drawers rattle by themselves beneath shelves of mismatched hands, gears, and glass eyes.",
+      "exits": { "west": "cellar_landing" },
+      "encounters": ["clockrat", "parts_mimic"]
+    },
+    "heart_chamber": {
+      "name": "The Heart Chamber",
+      "description": "A pendulum taller than a house swings above a machine that pulses like a metal heart.",
+      "exits": { "up": "cellar_landing" },
+      "encounters": ["iron_caretaker"]
+    }
+  },
+  "enemies": {
+    "clockrat": { "name": "wind-up rat", "level": 1, "health": 7, "attack": 1, "defense": 1, "accuracy": 1, "dodge": 2, "die": 4, "xp": 1, "gold": [1, 3] },
+    "spring_imp": { "name": "spring-loaded imp", "level": 2, "health": 11, "attack": 2, "defense": 1, "accuracy": 2, "dodge": 2, "die": 5, "xp": 3, "gold": [2, 5] },
+    "brass_hound": { "name": "brass guard hound", "level": 3, "health": 17, "attack": 3, "defense": 3, "accuracy": 2, "dodge": 1, "die": 6, "xp": 4, "gold": [4, 8] },
+    "parts_mimic": { "name": "cabinet mimic", "level": 3, "health": 19, "attack": 3, "defense": 2, "accuracy": 1, "dodge": 1, "die": 7, "xp": 5, "gold": [5, 10] },
+    "iron_caretaker": {
+      "name": "iron caretaker",
+      "level": 5,
+      "health": 30,
+      "attack": 4,
+      "defense": 4,
+      "accuracy": 3,
+      "dodge": 1,
+      "die": 8,
+      "xp": 9,
+      "gold": [10, 18],
+      "encounterText": "The great machine opens a single furnace-bright eye and names you an unauthorized component.",
+      "victoryText": "The caretaker falls silent. Far overhead, the town clock strikes twelve and finally stops."
+    }
+  }
+}

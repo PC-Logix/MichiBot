@@ -2,6 +2,7 @@
 
 const optionalHooks = require('../services/optionalHooks');
 const rpg = require('../services/rpg');
+const world = require('../services/rpgWorld');
 const { addressedSay, say, text } = require('../utils/helper');
 
 const HOOK_NAME = 'RPG';
@@ -44,10 +45,11 @@ function levelMessage(character, gains) {
 
 module.exports = {
   name: 'RPG',
-  commands: [{ name: 'rpg', access: { public: true } }],
+  commands: [{ name: 'rpg', aliases: ['mud'], access: { public: true } }],
 
   init() {
     rpg.ensureSchema();
+    world.ensureSchema();
     optionalHooks.ensureSchema();
     console.log('[RPG] initialized');
   },
@@ -74,6 +76,29 @@ module.exports = {
 
     if (!optionalHooks.isEnabled(HOOK_NAME, channel)) return addressedSay(ctx, 'RPG is disabled in this channel.');
 
+    if (action === 'story') {
+      if (!parts[0]) {
+        return addressedSay(ctx, `Active story: ${world.activeStory().title} (${world.activeStoryId()}). Available: ${world.storyPacks.listStories().join(', ') || 'none'}.`);
+      }
+      if (!(await hasAccess(ctx, ADMIN))) return;
+      try {
+        const story = world.setActiveStory(parts[0]);
+        return say(ctx, `RPG story changed to ${story.title} (${story.id}). Players will enter at ${story.rooms[story.startRoom].name}.`);
+      } catch (error) {
+        return addressedSay(ctx, error.message);
+      }
+    }
+
+    if (action === 'reloadstory') {
+      if (!(await hasAccess(ctx, ADMIN))) return;
+      try {
+        const story = world.reloadActiveStory();
+        return say(ctx, `Reloaded RPG story ${story.title} (${story.id}).`);
+      } catch (error) {
+        return addressedSay(ctx, error.message);
+      }
+    }
+
     if (action === 'givexp') {
       if (!(await hasAccess(ctx, ADMIN))) return;
       const [target, amountText] = parts;
@@ -86,10 +111,62 @@ module.exports = {
     }
 
     const character = rpg.getCharacter(await resolveIdentity(ctx), ctx.nick);
+    const worldState = world.getState(character.account, ctx.nick);
+
+    if (action === 'start') {
+      say(ctx, world.activeStory().intro);
+      return say(ctx, world.look(worldState));
+    }
+
+    if (['look', 'l'].includes(action)) return say(ctx, world.look(worldState));
+
+    if (action === 'go' || Object.prototype.hasOwnProperty.call(world.DIRECTION_ALIASES, action) ||
+      ['north', 'south', 'east', 'west', 'up', 'down'].includes(action)) {
+      const requestedDirection = action === 'go' ? parts[0] : action;
+      if (!requestedDirection) return addressedSay(ctx, `Usage: ${ctx.prefix}rpg go <direction>`);
+      return say(ctx, world.move(worldState, requestedDirection).message);
+    }
+
+    if (action === 'explore' || action === 'search') return say(ctx, world.explore(worldState, character).message);
+
+    if (action === 'attack' || action === 'fight') {
+      const result = world.attack(worldState, character);
+      for (const message of result.messages) say(ctx, message);
+      if (result.gains) return say(ctx, levelMessage(character, result.gains));
+      return undefined;
+    }
+
+    if (action === 'defend' || action === 'guard') {
+      const result = world.defend(worldState, character);
+      for (const message of result.messages) say(ctx, message);
+      return undefined;
+    }
+
+    if (action === 'flee' || action === 'run') {
+      const result = world.flee(worldState, character, parts[0]);
+      for (const message of result.messages) say(ctx, message);
+      return undefined;
+    }
+
+    if (action === 'rest' || action === 'sleep') return say(ctx, world.rest(worldState, character).message);
+
+    if (action === 'who') {
+      const players = world.playersInRoom(worldState);
+      return say(ctx, players.length ? `Also here: ${players.join(', ')}.` : 'Nobody else is here right now.');
+    }
+
+    if (action === 'map') return say(ctx, world.mapText());
+
+    if (action === 'gold') return say(ctx, `You have ${worldState.gold} gold and ${worldState.victories} victories.`);
+
+    if (action === 'help') {
+      return addressedSay(ctx, `Commands: look, go <direction>, explore, attack, defend, flee [direction], rest, who, map, gold, stats, status, story, and stat choices.`);
+    }
 
     if (action === 'stats') {
       say(ctx, rpg.summary(character));
-      return say(ctx, `${character.strength} strength, ${character.defense} defense, ${character.accuracy} accuracy & ${character.dodge} dodge.`);
+      say(ctx, `${character.strength} strength, ${character.defense} defense, ${character.accuracy} accuracy & ${character.dodge} dodge.`);
+      return say(ctx, `${world.roomFor(worldState).name}; ${worldState.gold} gold; ${worldState.victories} victories.`);
     }
 
     if (['strength', 'defense', 'accuracy', 'dodge'].includes(action)) {
@@ -101,7 +178,7 @@ module.exports = {
 
     if (action === 'status') return say(ctx, `Your status is "${rpg.status(character, true)}"`);
 
-    return addressedSay(ctx, `Usage: ${ctx.prefix}rpg <state|enable|disable|stats|status|strength|defense|accuracy|dodge|givexp>`);
+    return addressedSay(ctx, `Usage: ${ctx.prefix}rpg <start|look|go|explore|attack|defend|flee|rest|who|map|gold|stats|status|help>`);
   },
 
   _private: {
@@ -110,6 +187,7 @@ module.exports = {
     MOD_IN_CHANNEL,
     hasAccess,
     levelMessage,
-    resolveIdentity
+    resolveIdentity,
+    world
   }
 };

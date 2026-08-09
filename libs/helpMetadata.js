@@ -100,7 +100,7 @@ const HELP_METADATA = {
   resettonk: { help: 'Reset tonk data/admin tonk controls.' },
   reverse: { help: 'Reverses the supplied text', args: 'string' },
   rot13: { help: 'Applies the ROT13 cipher to the supplied text', args: 'string' },
-  rpg: { help: 'Manage and view the optional channel RPG character system.', args: 'SubCommand:string [Params:string]' },
+  rpg: { help: 'Play the optional persistent RPG: explore rooms, fight creatures, gain levels, and collect gold.', args: 'SubCommand:string [Params:string]' },
   say: { help: 'Send a message as the bot.', args: 'Message:string' },
   sed: { help: 'Applies sed-style corrections to recent chat.' },
   seen: { help: 'Tells you the last time a user was active. Active means they sent a message.', args: 'Nick:string' },

@@ -1,0 +1,106 @@
+{
+  "id": "crossroads",
+  "title": "The Crossroads",
+  "intro": "Travelers whisper that something beneath the old country roads is waking. Begin at the crossroads, follow the signs, and see what the buried vault has forgotten.",
+  "startRoom": "crossroads",
+  "mapText": "Map: [Tavern]-Crossroads-[Woods]-[Ruins]-[Crypt]; Crossroads north to Old Road and south to Riverbank; Woods north to Clearing, then east to Cave and down to its Vault; Shrine links Old Road and Riverbank.",
+  "rooms": {
+    "crossroads": {
+      "name": "The Crossroads",
+      "description": "A weathered signpost points toward several equally questionable adventures.",
+      "safe": true,
+      "exits": { "north": "old_road", "east": "whispering_woods", "south": "riverbank", "west": "bent_coin" }
+    },
+    "bent_coin": {
+      "name": "The Bent Coin",
+      "description": "A warm, noisy tavern where the stew is cheap and the chairs are mostly intact.",
+      "safe": true,
+      "exits": { "east": "crossroads" }
+    },
+    "old_road": {
+      "name": "The Old Road",
+      "description": "Broken milestones vanish into weeds beneath a sky full of circling crows.",
+      "exits": { "south": "crossroads", "north": "hilltop_shrine", "east": "ruins" },
+      "encounters": ["bandit", "goblin", "wolf"]
+    },
+    "whispering_woods": {
+      "name": "The Whispering Woods",
+      "description": "The branches murmur whenever the wind stops, which seems deeply unfair.",
+      "exits": { "west": "crossroads", "north": "mossy_clearing", "east": "ruins" },
+      "encounters": ["wolf", "goblin", "bogling"]
+    },
+    "mossy_clearing": {
+      "name": "The Mossy Clearing",
+      "description": "Pale mushrooms ring a moss-covered stone and something watches from the brush.",
+      "exits": { "south": "whispering_woods", "east": "cave_mouth" },
+      "encounters": ["bogling", "wolf", "slime"]
+    },
+    "cave_mouth": {
+      "name": "The Cave Mouth",
+      "description": "Cold air rises from a stair cut into the rock. Tiny footprints lead downward.",
+      "exits": { "west": "mossy_clearing", "down": "echoing_cave" },
+      "encounters": ["goblin", "bat", "ogre"]
+    },
+    "echoing_cave": {
+      "name": "The Echoing Cave",
+      "description": "Water ticks into black pools. Every sound returns with one extra footstep.",
+      "exits": { "up": "cave_mouth", "east": "buried_vault" },
+      "encounters": ["bat", "slime", "skeleton"]
+    },
+    "buried_vault": {
+      "name": "The Buried Vault",
+      "description": "An ancient iron door hangs open before a chamber full of dust and old bones.",
+      "exits": { "west": "echoing_cave" },
+      "encounters": ["skeleton", "ogre", "wraith"]
+    },
+    "ruins": {
+      "name": "The Fallen Ruins",
+      "description": "Roofless halls surround a dry fountain carved with forgotten names.",
+      "exits": { "west": "whispering_woods", "north": "crypt", "south": "old_road" },
+      "encounters": ["bandit", "skeleton", "goblin"]
+    },
+    "crypt": {
+      "name": "The Sunken Crypt",
+      "description": "Cracked statues stand guard over stairs that descend into greenish mist.",
+      "exits": { "south": "ruins" },
+      "encounters": ["skeleton", "wraith", "slime"]
+    },
+    "riverbank": {
+      "name": "The Moonlit Riverbank",
+      "description": "A fast river cuts through reeds and smooth black stones.",
+      "exits": { "north": "crossroads", "east": "hilltop_shrine" },
+      "encounters": ["bogling", "bandit", "slime"]
+    },
+    "hilltop_shrine": {
+      "name": "The Hilltop Shrine",
+      "description": "Blue candles burn without wind beneath the calm gaze of a stone traveler.",
+      "safe": true,
+      "exits": { "south": "old_road", "west": "riverbank" }
+    }
+  },
+  "enemies": {
+    "rat": { "name": "giant rat", "level": 1, "health": 6, "attack": 0, "defense": 0, "accuracy": 0, "dodge": 1, "die": 4, "xp": 1, "gold": [0, 2] },
+    "bat": { "name": "cave bat", "level": 1, "health": 7, "attack": 0, "defense": 0, "accuracy": 2, "dodge": 3, "die": 4, "xp": 1, "gold": [0, 2] },
+    "slime": { "name": "hungry slime", "level": 1, "health": 9, "attack": 1, "defense": 1, "accuracy": 0, "dodge": 0, "die": 4, "xp": 2, "gold": [1, 3] },
+    "goblin": { "name": "road goblin", "level": 1, "health": 10, "attack": 1, "defense": 1, "accuracy": 1, "dodge": 1, "die": 4, "xp": 2, "gold": [1, 4] },
+    "bogling": { "name": "river bogling", "level": 1, "health": 11, "attack": 1, "defense": 1, "accuracy": 1, "dodge": 1, "die": 5, "xp": 2, "gold": [1, 4] },
+    "wolf": { "name": "grey wolf", "level": 2, "health": 12, "attack": 2, "defense": 1, "accuracy": 2, "dodge": 2, "die": 5, "xp": 3, "gold": [1, 4] },
+    "bandit": { "name": "dusty bandit", "level": 2, "health": 14, "attack": 2, "defense": 2, "accuracy": 1, "dodge": 1, "die": 6, "xp": 3, "gold": [3, 7] },
+    "skeleton": { "name": "restless skeleton", "level": 3, "health": 16, "attack": 2, "defense": 3, "accuracy": 2, "dodge": 0, "die": 6, "xp": 4, "gold": [2, 7] },
+    "ogre": { "name": "cave ogre", "level": 4, "health": 24, "attack": 4, "defense": 3, "accuracy": 1, "dodge": 0, "die": 8, "xp": 6, "gold": [5, 12] },
+    "wraith": {
+      "name": "vault wraith",
+      "level": 5,
+      "health": 28,
+      "attack": 4,
+      "defense": 4,
+      "accuracy": 3,
+      "dodge": 3,
+      "die": 8,
+      "xp": 8,
+      "gold": [8, 16],
+      "encounterText": "The candles die as the vault's last guardian peels itself from the wall.",
+      "victoryText": "The wraith dissolves, and a sealed lantern at the center of the vault burns blue for the first time in centuries."
+    }
+  }
+}
