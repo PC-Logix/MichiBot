@@ -45,6 +45,10 @@ core/
 The bot is designed to keep core IRC handling isolated from plugin logic.
 Core modules handle connection state, capability negotiation, and event routing, while plugins implement actual features and commands.
 
+The CTCP `VERSION` response can be customized with `version` in `config.json`.
+When omitted or blank, it defaults to the repository URL followed by the short
+Git commit hash, for example `https://github.com/PC-Logix/MichiBot a3e8dee`.
+
 Modules are loaded as part of the core runtime and are not currently hot-reloadable.
 
 IRC auto-join channels are stored in the legacy SQLite `Channels(name)` table. On a brand-new database, the `channels` array in `config.json` seeds that table once. The `join` and `part` commands then persist changes to SQLite, and reconnects load the current database list.

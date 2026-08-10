@@ -5,6 +5,7 @@
   "server": "irc.example.net",
   "userName": "examplebot",
   "realName": "Example IRC Bot",
+  "version": "",
   "port": 6697,
   "debug": false,
   "showErrors": false,
