@@ -2,6 +2,9 @@
 
 const { getDb } = require('../libs/db');
 
+const DEFAULT_ACTIVITY_XP = 0.25;
+const DEFAULT_ACTIVITY_COOLDOWN_MS = 60 * 1000;
+
 const CHARACTER_COLUMNS = {
   userName: "STRING DEFAULT ''",
   health: 'DOUBLE DEFAULT 20',
@@ -18,7 +21,8 @@ const CHARACTER_COLUMNS = {
   numAttacked: 'INT DEFAULT 0',
   numAttacks: 'INT DEFAULT 0',
   deaths: 'INT DEFAULT 0',
-  revives: 'INT DEFAULT 0'
+  revives: 'INT DEFAULT 0',
+  lastActivityXp: 'INT DEFAULT 0'
 };
 
 function db() {
@@ -79,7 +83,8 @@ function defaults(account, userName) {
     numAttacked: 0,
     numAttacks: 0,
     deaths: 0,
-    revives: 0
+    revives: 0,
+    lastActivityXp: 0
   };
 }
 
@@ -106,11 +111,11 @@ function getCharacter(account, userName = '') {
       INSERT INTO RPGUsers(
         account, userName, health, xp, level, strength, defense, accuracy, dodge,
         gainStrength, gainDefense, gainAccuracy, gainDodge,
-        numAttacked, numAttacks, deaths, revives
+        numAttacked, numAttacks, deaths, revives, lastActivityXp
       ) VALUES (
         @account, @userName, @health, @xp, @level, @strength, @defense, @accuracy, @dodge,
         @gainStrength, @gainDefense, @gainAccuracy, @gainDodge,
-        @numAttacked, @numAttacks, @deaths, @revives
+        @numAttacked, @numAttacks, @deaths, @revives, @lastActivityXp
       )
     `).run(character);
     return character;
@@ -134,7 +139,7 @@ function saveCharacter(character) {
       gainStrength=@gainStrength, gainDefense=@gainDefense,
       gainAccuracy=@gainAccuracy, gainDodge=@gainDodge,
       numAttacked=@numAttacked, numAttacks=@numAttacks,
-      deaths=@deaths, revives=@revives
+      deaths=@deaths, revives=@revives, lastActivityXp=@lastActivityXp
     WHERE LOWER(account)=LOWER(@account)
   `).run(value);
   Object.assign(character, value);
@@ -192,6 +197,28 @@ function gainExperience(character, amount, random = Math.random) {
   return levelUp(character, false, random);
 }
 
+function gainActivityExperience(character, {
+  amount = DEFAULT_ACTIVITY_XP,
+  cooldownMs = DEFAULT_ACTIVITY_COOLDOWN_MS,
+  now = Date.now(),
+  random = Math.random
+} = {}) {
+  const gain = Number(amount);
+  const cooldown = Math.max(0, Number(cooldownMs || 0));
+  const timestamp = Number(now);
+  if (!Number.isFinite(gain) || gain <= 0) throw new Error('Activity experience must be a positive number.');
+  if (!Number.isFinite(timestamp)) throw new Error('Activity timestamp must be numeric.');
+
+  const elapsed = timestamp - Number(character.lastActivityXp || 0);
+  if (elapsed < cooldown) {
+    return { awarded: false, amount: 0, remainingMs: cooldown - elapsed, gains: null };
+  }
+
+  character.lastActivityXp = timestamp;
+  const gains = gainExperience(character, gain, random);
+  return { awarded: true, amount: gain, remainingMs: 0, gains };
+}
+
 function applyStatGain(character, stat) {
   const normalized = String(stat || '').toLowerCase();
   const gainKey = {
@@ -235,10 +262,13 @@ function summary(character) {
 }
 
 module.exports = {
+  DEFAULT_ACTIVITY_COOLDOWN_MS,
+  DEFAULT_ACTIVITY_XP,
   applyStatGain,
   ensureSchema: db,
   experienceToNextLevel,
   gainExperience,
+  gainActivityExperience,
   getCharacter,
   levelUp,
   maxHealth,

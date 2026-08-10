@@ -21,19 +21,22 @@
       "name": "The Boiler Room",
       "description": "A brass furnace breathes red light through rows of riveted teeth.",
       "exits": { "east": "cellar_landing" },
-      "encounters": ["spring_imp", "brass_hound"]
+      "encounters": ["spring_imp", "brass_hound"],
+      "discoveries": ["safety_locker"]
     },
     "parts_store": {
       "name": "The Parts Store",
       "description": "Drawers rattle by themselves beneath shelves of mismatched hands, gears, and glass eyes.",
       "exits": { "west": "cellar_landing" },
-      "encounters": ["clockrat", "parts_mimic"]
+      "encounters": ["clockrat", "parts_mimic"],
+      "discoveries": ["parts_crate"]
     },
     "heart_chamber": {
       "name": "The Heart Chamber",
       "description": "A pendulum taller than a house swings above a machine that pulses like a metal heart.",
       "exits": { "up": "cellar_landing" },
-      "encounters": ["iron_caretaker"]
+      "encounters": ["iron_caretaker"],
+      "discoveries": ["caretaker_lockbox"]
     }
   },
   "enemies": {
@@ -54,6 +57,29 @@
       "gold": [10, 18],
       "encounterText": "The great machine opens a single furnace-bright eye and names you an unauthorized component.",
       "victoryText": "The caretaker falls silent. Far overhead, the town clock strikes twelve and finally stops."
+    }
+  },
+  "discoveries": {
+    "safety_locker": {
+      "name": "the emergency safety locker",
+      "foundText": "The emergency locker still contains one pleasantly cool restorative vial.",
+      "cooldownSeconds": 480,
+      "heal": 7,
+      "xp": 0.5
+    },
+    "parts_crate": {
+      "name": "a crate of valuable clock parts",
+      "foundText": "You sort the useful brass pieces from a crate stamped PROPERTY OF THE CLOCKMAKER.",
+      "cooldownSeconds": 720,
+      "gold": [4, 8],
+      "xp": 1
+    },
+    "caretaker_lockbox": {
+      "name": "the caretaker's lockbox",
+      "foundText": "A hidden drawer in the heart machine releases the caretaker's carefully counted wages.",
+      "cooldownSeconds": 1800,
+      "gold": [12, 22],
+      "xp": 3
     }
   }
 }

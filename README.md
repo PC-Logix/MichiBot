@@ -70,6 +70,10 @@ The JavaScript sandbox requires Node.js 22 or newer. Each snippet runs in a fres
 
 ## RPG story packs
 
-The optional RPG is a persistent, IRC-friendly MUD. Its rooms, exits, descriptions, encounter tables, monsters, and map text are defined by JSON story packs in `resources/rpg/stories/`. Copy `crossroads.json`, give the file and its `id` a new matching name, and edit the world without changing JavaScript.
+The optional RPG is a persistent, multiplayer IRC-friendly MUD. Its rooms, exits, descriptions, encounter tables, monsters, shared discoveries, and map text are defined by JSON story packs in `resources/rpg/stories/`. Copy `crossroads.json`, give the file and its `id` a new matching name, and edit the world without changing JavaScript.
+
+Players share discoverable chests, caches, lockers, and shrines. Use `rpg search` to claim an available find; `rpg look` shows whether another player has used it and how long remains before its JSON-defined cooldown expires. Player locations are also shared through `rpg who`, while combat encounters remain personal to each character.
 
 Select the initial pack with `rpg.story` in `config.json` or the `MICHIBOT_RPG_STORY` environment variable. While the bot is running, an admin can use `rpg story <id>` to switch packs or `rpg reloadstory` after editing the active JSON. Switching stories sends each player to the new entrance on their next RPG command while preserving character stats, XP, gold, and victories.
+
+When RPG is enabled in a channel, ordinary conversation also grants character XP. By default, a user can receive `0.25` XP once per minute for a non-command message containing at least three visible characters. Private messages and bot commands do not count. Configure this with `rpg.activity` in `config.json`.

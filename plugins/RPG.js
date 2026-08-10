@@ -3,7 +3,8 @@
 const optionalHooks = require('../services/optionalHooks');
 const rpg = require('../services/rpg');
 const world = require('../services/rpgWorld');
-const { addressedSay, say, text } = require('../utils/helper');
+const { parseCommandMessage } = require('../libs/commandHandler');
+const { addressedSay, say, stripIrcFormatting, text } = require('../utils/helper');
 
 const HOOK_NAME = 'RPG';
 const MOD_IN_CHANNEL = {
@@ -43,6 +44,30 @@ function levelMessage(character, gains) {
     `${gains.accuracy} accuracy or ${gains.dodge} dodge by entering the appropriate sub command now!`;
 }
 
+function activitySettings(ctx) {
+  const config = ctx.config?.rpg?.activity || {};
+  const xp = Number(config.xp);
+  const cooldownSeconds = Number(config.cooldownSeconds);
+  const minLength = Number(config.minLength);
+  return {
+    enabled: config.enabled !== false,
+    xp: Number.isFinite(xp) && xp > 0 ? xp : rpg.DEFAULT_ACTIVITY_XP,
+    cooldownMs: Number.isFinite(cooldownSeconds) && cooldownSeconds >= 0 ?
+      cooldownSeconds * 1000 : rpg.DEFAULT_ACTIVITY_COOLDOWN_MS,
+    minLength: Number.isFinite(minLength) && minLength > 0 ? Math.floor(minLength) : 3
+  };
+}
+
+function isActivityMessage(ctx, settings) {
+  if (!settings.enabled || ctx.isPrivate) return false;
+  const channel = ctx.replyTarget || ctx.to;
+  if (!channel || !optionalHooks.isEnabled(HOOK_NAME, channel)) return false;
+  const message = stripIrcFormatting(ctx.text || '').trim();
+  if (message.length < settings.minLength || !/[\p{L}\p{N}]/u.test(message)) return false;
+  const currentPrefix = String(ctx.bot?.getPrefix?.() || ctx.config?.commandPrefix || '!');
+  return !parseCommandMessage({ text: message, currentPrefix, client: ctx.client, config: ctx.config });
+}
+
 module.exports = {
   name: 'RPG',
   commands: [{ name: 'rpg', aliases: ['mud'], access: { public: true } }],
@@ -52,6 +77,18 @@ module.exports = {
     world.ensureSchema();
     optionalHooks.ensureSchema();
     console.log('[RPG] initialized');
+  },
+
+  async onMessage(ctx) {
+    const settings = activitySettings(ctx);
+    if (!isActivityMessage(ctx, settings)) return;
+    const character = rpg.getCharacter(await resolveIdentity(ctx), ctx.nick);
+    const result = rpg.gainActivityExperience(character, {
+      amount: settings.xp,
+      cooldownMs: settings.cooldownMs
+    });
+    if (result.gains) return say(ctx, levelMessage(character, result.gains));
+    return undefined;
   },
 
   async handleCommand(ctx) {
@@ -110,6 +147,13 @@ module.exports = {
       return say(ctx, `${character.userName} now has ${character.xp} experience! (${rpg.experienceToNextLevel(character)} until next level)`);
     }
 
+    if (action === 'activity') {
+      const settings = activitySettings(ctx);
+      return addressedSay(ctx, settings.enabled ?
+        `Chat activity grants ${settings.xp} XP at most once every ${settings.cooldownMs / 1000} seconds for non-command messages.` :
+        'Chat activity XP is disabled by configuration.');
+    }
+
     const character = rpg.getCharacter(await resolveIdentity(ctx), ctx.nick);
     const worldState = world.getState(character.account, ctx.nick);
 
@@ -127,7 +171,14 @@ module.exports = {
       return say(ctx, world.move(worldState, requestedDirection).message);
     }
 
-    if (action === 'explore' || action === 'search') return say(ctx, world.explore(worldState, character).message);
+    if (action === 'explore') return say(ctx, world.explore(worldState, character).message);
+
+    if (action === 'search') {
+      const result = world.search(worldState, character);
+      for (const message of result.messages) say(ctx, message);
+      if (result.gains) return say(ctx, levelMessage(character, result.gains));
+      return undefined;
+    }
 
     if (action === 'attack' || action === 'fight') {
       const result = world.attack(worldState, character);
@@ -160,7 +211,7 @@ module.exports = {
     if (action === 'gold') return say(ctx, `You have ${worldState.gold} gold and ${worldState.victories} victories.`);
 
     if (action === 'help') {
-      return addressedSay(ctx, `Commands: look, go <direction>, explore, attack, defend, flee [direction], rest, who, map, gold, stats, status, story, and stat choices.`);
+      return addressedSay(ctx, `Commands: look, go <direction>, explore, search, attack, defend, flee [direction], rest, who, map, gold, stats, status, activity, story, and stat choices.`);
     }
 
     if (action === 'stats') {
@@ -178,14 +229,16 @@ module.exports = {
 
     if (action === 'status') return say(ctx, `Your status is "${rpg.status(character, true)}"`);
 
-    return addressedSay(ctx, `Usage: ${ctx.prefix}rpg <start|look|go|explore|attack|defend|flee|rest|who|map|gold|stats|status|help>`);
+    return addressedSay(ctx, `Usage: ${ctx.prefix}rpg <start|look|go|explore|search|attack|defend|flee|rest|who|map|gold|stats|status|activity|help>`);
   },
 
   _private: {
     ADMIN,
     HOOK_NAME,
     MOD_IN_CHANNEL,
+    activitySettings,
     hasAccess,
+    isActivityMessage,
     levelMessage,
     resolveIdentity,
     world

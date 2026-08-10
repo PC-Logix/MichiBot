@@ -39,6 +39,14 @@ function db() {
       key STRING UNIQUE PRIMARY KEY,
       value STRING
     );
+    CREATE TABLE IF NOT EXISTS RPGWorldDiscoveries(
+      story STRING NOT NULL,
+      room STRING NOT NULL,
+      discovery STRING NOT NULL,
+      availableAt INT NOT NULL DEFAULT 0,
+      claimedBy STRING DEFAULT '',
+      PRIMARY KEY(story, room, discovery)
+    );
   `);
   const existing = new Set(database.prepare('PRAGMA table_info(RPGWorldState)').all()
     .map(row => String(row.name || '').toLowerCase()));
@@ -164,12 +172,49 @@ function enemyFor(state) {
   };
 }
 
-function look(state) {
+function formatDuration(milliseconds) {
+  const seconds = Math.max(1, Math.ceil(Number(milliseconds || 0) / 1000));
+  if (seconds < 60) return `${seconds}s`;
+  const minutes = Math.ceil(seconds / 60);
+  if (minutes < 60) return `${minutes}m`;
+  const hours = Math.ceil(minutes / 60);
+  return `${hours}h`;
+}
+
+function discoveryStates(state, now = Date.now()) {
+  const room = roomFor(state);
+  const ids = room.discoveries || [];
+  if (!ids.length) return [];
+  const rows = db().prepare(`
+    SELECT discovery, availableAt, claimedBy FROM RPGWorldDiscoveries
+    WHERE story=? AND room=?
+  `).all(state.story, state.room);
+  const claimed = new Map(rows.map(row => [String(row.discovery), row]));
+  return ids.map(id => {
+    const discovery = activeStory().discoveries[id];
+    const row = claimed.get(id);
+    const availableAt = Number(row?.availableAt || 0);
+    return {
+      ...discovery,
+      id,
+      available: availableAt <= now,
+      availableAt,
+      claimedBy: String(row?.claimedBy || '')
+    };
+  });
+}
+
+function look(state, now = Date.now()) {
   const room = roomFor(state);
   const exits = Object.keys(room.exits).join(', ');
   const enemy = enemyFor(state);
   const danger = enemy ? ` ${enemy.name} (level ${enemy.level}, ${state.enemyHealth}/${enemy.maxHealth} HP) blocks your way!` : '';
-  return `${room.name}: ${room.description} Exits: ${exits}.${danger}`;
+  const discoveries = discoveryStates(state, now);
+  const finds = discoveries.length ? ` Shared finds: ${discoveries.map(discovery => discovery.available ?
+    `${discovery.name} (available)` :
+    `${discovery.name} (used${discovery.claimedBy ? ` by ${discovery.claimedBy}` : ''}; returns in ${formatDuration(discovery.availableAt - now)})`
+  ).join(', ')}.` : '';
+  return `${room.name}: ${room.description} Exits: ${exits}.${danger}${finds}`;
 }
 
 function move(state, requestedDirection) {
@@ -205,6 +250,58 @@ function explore(state, character, random = Math.random) {
   saveState(state);
   const introduction = enemy.encounterText ? `${enemy.encounterText} ` : '';
   return { ok: true, enemy, message: `${introduction}You face a ${enemy.name} (level ${enemy.level}, ${enemy.maxHealth} HP).` };
+}
+
+function search(state, character, random = Math.random, now = Date.now()) {
+  const enemy = enemyFor(state);
+  if (enemy) return { ok: false, messages: [`You cannot search while the ${enemy.name} is attacking you.`] };
+
+  const discoveries = discoveryStates(state, now);
+  if (!discoveries.length) return { ok: false, messages: ['You search carefully, but find nothing useful here.'] };
+  const available = discoveries.filter(discovery => discovery.available);
+  if (!available.length) {
+    const next = Math.min(...discoveries.map(discovery => discovery.availableAt));
+    return { ok: false, messages: [`This place has already been picked over. Something may return in ${formatDuration(next - now)}.`] };
+  }
+
+  const discovery = available[randomIndex(available.length, random)];
+  const availableAt = now + (Number(discovery.cooldownSeconds) * 1000);
+  const claim = db().prepare(`
+    INSERT INTO RPGWorldDiscoveries(story, room, discovery, availableAt, claimedBy)
+    VALUES(?, ?, ?, ?, ?)
+    ON CONFLICT(story, room, discovery) DO UPDATE SET
+      availableAt=excluded.availableAt,
+      claimedBy=excluded.claimedBy
+    WHERE RPGWorldDiscoveries.availableAt <= ?
+  `).run(state.story, state.room, discovery.id, availableAt, state.userName || state.account, now);
+  if (!claim.changes) {
+    return { ok: false, messages: ['Someone else got there first. This place has already been picked over.'] };
+  }
+
+  let gold = 0;
+  if (discovery.gold) {
+    gold = discovery.gold[0] + randomIndex((discovery.gold[1] - discovery.gold[0]) + 1, random);
+    state.gold += gold;
+  }
+  const maxHealth = rpg.maxHealth(character);
+  const healed = Math.min(Number(discovery.heal || 0), Math.max(0, maxHealth - Number(character.health || 0)));
+  if (healed > 0) character.health += healed;
+  const xp = Number(discovery.xp || 0);
+  const gains = xp > 0 ? rpg.gainExperience(character, xp, random) : null;
+  if (!xp && healed > 0) rpg.saveCharacter(character);
+  saveState(state);
+
+  const rewards = [];
+  if (gold > 0) rewards.push(`${gold} gold`);
+  if (xp > 0) rewards.push(`${xp} XP`);
+  if (healed > 0) rewards.push(`${healed} health`);
+  const rewardText = rewards.length ? ` You gain ${rewards.join(', ')}.` : '';
+  return {
+    ok: true,
+    discovery,
+    gains,
+    messages: [`${discovery.foundText}${rewardText} It will replenish in ${formatDuration(availableAt - now)}.`]
+  };
 }
 
 function clearEnemy(state) {
@@ -350,6 +447,7 @@ module.exports = {
   activeStoryId,
   attack,
   defend,
+  discoveryStates,
   enemyFor,
   ensureSchema: db,
   explore,
@@ -363,6 +461,7 @@ module.exports = {
   rest,
   roomFor,
   saveState,
+  search,
   setActiveStory,
   storyPacks
 };

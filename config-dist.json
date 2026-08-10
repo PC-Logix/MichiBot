@@ -65,7 +65,13 @@
     }
   },
   "rpg": {
-    "story": "crossroads"
+    "story": "crossroads",
+    "activity": {
+      "enabled": true,
+      "xp": 0.25,
+      "cooldownSeconds": 60,
+      "minLength": 3
+    }
   },
   "luaSandbox": {
     "timeoutMs": 3500,
