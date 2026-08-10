@@ -313,6 +313,109 @@ button[disabled] {
   align-items: center;
 }
 
+.character-count {
+  font-size: 0.9rem;
+  font-weight: 400;
+}
+
+.character-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 14px;
+}
+
+.character-card {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px;
+  background: var(--stripe);
+}
+
+.character-heading {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px;
+  align-items: center;
+}
+
+.character-heading h3 {
+  margin: 0;
+}
+
+.linked-pill {
+  color: var(--text);
+  background: var(--header);
+}
+
+.character-location,
+.character-career {
+  margin: 8px 0;
+}
+
+.meter-label {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 9px;
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
+.progress-track {
+  height: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--border);
+}
+
+.progress-track span {
+  display: block;
+  height: 100%;
+}
+
+.health-progress {
+  background: #3ba55d;
+}
+
+.xp-progress {
+  background: #668cff;
+}
+
+.character-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+  margin: 13px 0;
+}
+
+.character-stats div {
+  padding: 6px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  text-align: center;
+  background: var(--panel);
+}
+
+.character-stats dt {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.character-stats dd {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 700;
+}
+
+.pending-gains {
+  margin: 10px 0 0;
+  padding: 8px;
+  border-left: 4px solid var(--accent);
+  background: var(--panel);
+}
+
 .rpg-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
@@ -376,6 +479,14 @@ button[disabled] {
 }
 
 @media (max-width: 600px) {
+  .character-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .character-stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
   .rpg-command-table td:first-child,
   .rpg-command-table td:nth-child(2) {
     white-space: normal;

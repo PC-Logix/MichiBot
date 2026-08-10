@@ -135,6 +135,126 @@ function getRpgGuide(configuredStory = '') {
   return { activeStory, stories };
 }
 
+function rpgStatus(health, maxHealth) {
+  const percentage = Number(health || 0) / Math.max(1, Number(maxHealth || 1));
+  if (percentage < 0) return 'Down';
+  if (percentage < 0.25) return 'Mortally wounded';
+  if (percentage < 0.5) return 'Wounded';
+  if (percentage < 0.75) return 'Hurt';
+  if (percentage < 1) return 'Uncomfortable';
+  return 'Healthy';
+}
+
+function rpgNumber(value) {
+  const number = safeNumber(value, 0);
+  return Number.isInteger(number) ? String(number) : String(Number(number.toFixed(2)));
+}
+
+function getRpgCharacters() {
+  if (!hasTable('RPGUsers')) return [];
+  const users = db().prepare('SELECT * FROM RPGUsers').all();
+  const worldRows = hasTable('RPGWorldState') ? db().prepare('SELECT * FROM RPGWorldState').all() : [];
+  const worlds = new Map(worldRows.map(row => [String(row.account || '').toLowerCase(), row]));
+  const linkedAccounts = hasTable('IdentityLinks') ? new Set(db().prepare('SELECT ircAccount FROM IdentityLinks').all()
+    .map(row => String(row.ircAccount || '').toLowerCase())) : new Set();
+  const stories = new Map();
+  for (const id of storyPacks.listStories()) {
+    try {
+      stories.set(id, storyPacks.loadStory(id));
+    } catch (_) {
+      // A broken custom pack should not hide otherwise valid character data.
+    }
+  }
+
+  return users.map(user => {
+    const account = String(user.account || '');
+    const world = worlds.get(account.toLowerCase()) || {};
+    const level = Math.max(1, safeNumber(user.level, 1));
+    const xp = safeNumber(user.xp, 0);
+    const nextXp = level * 2 * 1.25;
+    const maxHealth = 20 + Math.floor(level * 0.2);
+    const health = safeNumber(user.health, 0);
+    const story = stories.get(String(world.story || '').toLowerCase());
+    const room = story?.rooms?.[world.room];
+    const enemyBase = world.enemy ? story?.enemies?.[world.enemy] : null;
+    let enemy = world.enemy ? String(world.enemy) : '';
+    if (enemyBase) {
+      const enemyLevel = Math.max(safeNumber(enemyBase.level, 1), safeNumber(world.enemyLevel, enemyBase.level));
+      const enemyMaxHealth = safeNumber(enemyBase.health, 0) + (Math.max(0, enemyLevel - safeNumber(enemyBase.level, 1)) * 3);
+      enemy = `${enemyBase.name} (level ${rpgNumber(enemyLevel)}, ${rpgNumber(world.enemyHealth)}/${rpgNumber(enemyMaxHealth)} HP)`;
+    }
+    const pending = [
+      ['strength', user.gainStrength],
+      ['defense', user.gainDefense],
+      ['accuracy', user.gainAccuracy],
+      ['dodge', user.gainDodge]
+    ].filter(([, gain]) => safeNumber(gain, 0) > 0).map(([stat, gain]) => `${stat} +${rpgNumber(gain)}`);
+
+    return {
+      name: String(user.userName || '').trim() || '(unnamed character)',
+      linked: linkedAccounts.has(account.toLowerCase()),
+      level,
+      xp: rpgNumber(xp),
+      nextXp: rpgNumber(nextXp),
+      xpPercent: Math.min(100, Math.max(0, (xp / Math.max(1, nextXp)) * 100)),
+      health: rpgNumber(health),
+      maxHealth: rpgNumber(maxHealth),
+      healthPercent: Math.min(100, Math.max(0, (health / Math.max(1, maxHealth)) * 100)),
+      status: rpgStatus(health, maxHealth),
+      strength: rpgNumber(user.strength),
+      defense: rpgNumber(user.defense),
+      accuracy: rpgNumber(user.accuracy),
+      dodge: rpgNumber(user.dodge),
+      attacks: Math.max(0, safeNumber(user.numAttacks, 0)),
+      attacked: Math.max(0, safeNumber(user.numAttacked, 0)),
+      deaths: Math.max(0, safeNumber(user.deaths, 0)),
+      revives: Math.max(0, safeNumber(user.revives, 0)),
+      gold: Math.max(0, safeNumber(world.gold, 0)),
+      victories: Math.max(0, safeNumber(world.victories, 0)),
+      story: story?.title || (world.story ? String(world.story) : 'Not exploring'),
+      room: room?.name || (world.room ? String(world.room) : 'No world position yet'),
+      enemy,
+      pending
+    };
+  }).sort((a, b) => b.level - a.level || Number(b.xp) - Number(a.xp) || a.name.localeCompare(b.name));
+}
+
+function getRpgWorldStatus(activeStoryId) {
+  const id = String(activeStoryId || '').toLowerCase();
+  let story;
+  try {
+    story = storyPacks.loadStory(id);
+  } catch (error) {
+    return { story: id, title: id, finds: [], error: error.message };
+  }
+
+  const rows = hasTable('RPGWorldDiscoveries') ? db().prepare(`
+    SELECT room, discovery, availableAt, claimedBy
+    FROM RPGWorldDiscoveries WHERE story=? COLLATE NOCASE
+  `).all(id) : [];
+  const claims = new Map(rows.map(row => [`${String(row.room)}\u0000${String(row.discovery)}`, row]));
+  const now = Date.now();
+  const finds = [];
+  for (const [roomId, room] of Object.entries(story.rooms)) {
+    for (const discoveryId of room.discoveries || []) {
+      const discovery = story.discoveries[discoveryId];
+      const claim = claims.get(`${roomId}\u0000${discoveryId}`);
+      const availableAt = safeNumber(claim?.availableAt, 0);
+      const available = availableAt <= now;
+      finds.push({
+        id: discoveryId,
+        name: discovery.name,
+        room: room.name,
+        reward: discoveryReward(discovery),
+        available,
+        claimedBy: available ? '' : String(claim?.claimedBy || ''),
+        returnsIn: available ? '' : formatDuration(availableAt - now)
+      });
+    }
+  }
+  return { story: story.id, title: story.title, finds };
+}
+
 function getStatus() {
   const tables = [
     'Quotes',
@@ -544,6 +664,8 @@ module.exports = {
   getPotionSummary,
   getQuotes,
   getRpgGuide,
+  getRpgCharacters,
+  getRpgWorldStatus,
   getStatsGrouped,
   getStatus,
   getTonkMeta,

@@ -29,6 +29,7 @@ function createWebServer({
   prefixRef
 }) {
   const webConfig = normalizeWebConfig(config || {});
+  const assetVersion = Date.now();
   const app = express();
   const pluginRouter = express.Router();
   const registeredRoutes = [];
@@ -53,6 +54,7 @@ function createWebServer({
     res.locals.prefix = prefixRef?.get ? prefixRef.get() : (config.commandPrefix || '#');
     res.locals.nav = data.getNav();
     res.locals.baseDomain = webConfig.baseDomain;
+    res.locals.assetVersion = assetVersion;
     res.locals.currentPath = req.path;
     res.locals.query = req.query || {};
     res.locals.webRoutes = registeredRoutes.slice();
@@ -77,9 +79,12 @@ function createWebServer({
 
   app.get('/rpg', (req, res) => {
     const activityConfig = config.rpg?.activity || {};
+    const rpgGuide = data.getRpgGuide(config.rpg?.story);
     res.render('rpg', {
       title: 'RPG Guide',
-      rpg: data.getRpgGuide(config.rpg?.story),
+      rpg: rpgGuide,
+      characters: data.getRpgCharacters(),
+      worldStatus: data.getRpgWorldStatus(rpgGuide.activeStory),
       activity: {
         enabled: activityConfig.enabled !== false,
         xp: Number.isFinite(Number(activityConfig.xp)) && Number(activityConfig.xp) > 0 ? Number(activityConfig.xp) : 0.25,

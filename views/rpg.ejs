@@ -13,6 +13,80 @@
   <p class="help-extra"><strong>Note:</strong> enabling or disabling the RPG requires a channel moderator. Once enabled, anyone in the channel can play. <code><%= prefix %>mud</code> is an alias for <code><%= prefix %>rpg</code>.</p>
 </div>
 
+<section class="card">
+  <h2>Live characters <span class="muted character-count"><%= characters.length %> total</span></h2>
+  <% if (!characters.length) { %>
+    <p>No characters have been created yet. Be the first with <code><%= prefix %>rpg start</code>.</p>
+  <% } else { %>
+    <div class="character-grid">
+      <% for (const character of characters) { %>
+        <article class="character-card">
+          <div class="character-heading">
+            <h3><%= character.name %></h3>
+            <div>
+              <span class="status-pill">level <%= character.level %></span>
+              <% if (character.linked) { %><span class="status-pill linked-pill">IRC + Discord</span><% } %>
+            </div>
+          </div>
+          <p class="character-location"><strong><%= character.room %></strong> · <%= character.story %><% if (character.enemy) { %> · fighting <%= character.enemy %><% } %></p>
+
+          <div class="meter-label"><span><%= character.status %></span><span><%= character.health %> / <%= character.maxHealth %> HP</span></div>
+          <div class="progress-track" role="meter" aria-label="<%= character.name %> health" aria-valuemin="0" aria-valuemax="<%= character.maxHealth %>" aria-valuenow="<%= character.health %>">
+            <span class="health-progress" style="width: <%= character.healthPercent %>%"></span>
+          </div>
+          <div class="meter-label"><span>Experience</span><span><%= character.xp %> / <%= character.nextXp %> XP</span></div>
+          <div class="progress-track" role="meter" aria-label="<%= character.name %> experience" aria-valuemin="0" aria-valuemax="<%= character.nextXp %>" aria-valuenow="<%= character.xp %>">
+            <span class="xp-progress" style="width: <%= character.xpPercent %>%"></span>
+          </div>
+
+          <dl class="character-stats">
+            <div><dt>STR</dt><dd><%= character.strength %></dd></div>
+            <div><dt>DEF</dt><dd><%= character.defense %></dd></div>
+            <div><dt>ACC</dt><dd><%= character.accuracy %></dd></div>
+            <div><dt>DODGE</dt><dd><%= character.dodge %></dd></div>
+          </dl>
+
+          <p class="character-career"><strong><%= character.gold %></strong> gold · <strong><%= character.victories %></strong> victories</p>
+          <p class="character-career"><strong><%= character.attacks %></strong> attacks made · <strong><%= character.attacked %></strong> enemy turns · <strong><%= character.deaths %></strong> deaths · <strong><%= character.revives %></strong> revives</p>
+          <% if (character.pending.length) { %>
+            <p class="pending-gains"><strong>Level-up choice waiting:</strong> <%= character.pending.join(' / ') %></p>
+          <% } %>
+        </article>
+      <% } %>
+    </div>
+  <% } %>
+</section>
+
+<section class="card">
+  <h2>Shared world status</h2>
+  <% if (worldStatus.error) { %>
+    <p class="bad"><%= worldStatus.error %></p>
+  <% } else if (!worldStatus.finds.length) { %>
+    <p><%= worldStatus.title %> has no shared discoveries.</p>
+  <% } else { %>
+    <p>Live availability for <strong><%= worldStatus.title %></strong>. Refresh the page to update cooldowns.</p>
+    <div class="table-wrap">
+      <table>
+        <tr><th>Find</th><th>Room</th><th>Reward</th><th>Status</th></tr>
+        <% for (const find of worldStatus.finds) { %>
+          <tr>
+            <td><%= find.name %></td>
+            <td><%= find.room %></td>
+            <td><%= find.reward %></td>
+            <td class="<%= find.available ? 'ok' : '' %>">
+              <% if (find.available) { %>
+                Available
+              <% } else { %>
+                Used<% if (find.claimedBy) { %> by <%= find.claimedBy %><% } %>; returns in <%= find.returnsIn %>
+              <% } %>
+            </td>
+          </tr>
+        <% } %>
+      </table>
+    </div>
+  <% } %>
+</section>
+
 <div class="rpg-grid">
   <section class="card">
     <h2>1. Enter and look around</h2>
