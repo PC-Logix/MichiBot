@@ -63,6 +63,7 @@ const HELP_METADATA = {
   listcommands: { help: 'List commands.' },
   listdnsbl: { help: 'List tracked DNS blocklist services.' },
   listplugins: { help: 'List currently loaded plugins.' },
+  linkdiscord: { help: 'Admin: link a Discord user ID to a NickServ account.', args: 'DiscordUserID:string NickServAccount:string' },
   listperms: { help: 'List global bot permission assignments.', args: '[Rank:string]' },
   lootbox: { help: 'Get a loot box! What could be inside!', args: '[LootTarget:string]' },
   loadplugin: { help: 'Load a plugin.', args: 'Plugin:string' },

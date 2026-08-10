@@ -38,7 +38,9 @@ function discordSubject(value) {
 
 function ircAccount(value) {
   const normalized = String(value || '').trim();
-  if (!normalized || normalized === '*') throw new Error('An authenticated IRC account is required.');
+  if (!normalized || normalized === '*' || /\s/.test(normalized)) {
+    throw new Error('A valid NickServ account is required.');
+  }
   return normalized.replace(/^acct:/i, '');
 }
 
@@ -102,6 +104,30 @@ function generateCode(randomInt = crypto.randomInt) {
   return code;
 }
 
+function linkIdentity(value, account, now = Date.now()) {
+  const subject = discordSubject(value);
+  const targetAccount = ircAccount(account);
+  const existing = getLink(subject);
+
+  if (existing && existing.ircAccount.toLowerCase() !== targetAccount.toLowerCase()) {
+    return { ok: false, reason: 'linked', ircAccount: existing.ircAccount };
+  }
+
+  if (!existing) {
+    db().prepare(`
+      INSERT INTO IdentityLinks(discordSubject, ircAccount, linkedAt)
+      VALUES(?, ?, ?)
+    `).run(subject, targetAccount, Number(now));
+  }
+
+  return {
+    ok: true,
+    alreadyLinked: !!existing,
+    discordSubject: subject,
+    ircAccount: targetAccount
+  };
+}
+
 function createClaim(value, displayName = '', {
   now = Date.now(),
   randomInt = crypto.randomInt
@@ -144,21 +170,13 @@ function consumeClaim(value, account, now = Date.now()) {
   `).get(code);
   if (!claim) return { ok: false, reason: 'invalid' };
 
-  const existing = getLink(claim.discordSubject);
-  if (existing && existing.ircAccount.toLowerCase() !== targetAccount.toLowerCase()) {
-    return { ok: false, reason: 'linked', ircAccount: existing.ircAccount };
-  }
+  const link = linkIdentity(claim.discordSubject, targetAccount, now);
+  if (!link.ok) return link;
 
-  if (!existing) {
-    db().prepare(`
-      INSERT INTO IdentityLinks(discordSubject, ircAccount, linkedAt)
-      VALUES(?, ?, ?)
-    `).run(claim.discordSubject, targetAccount, Number(now));
-  }
   db().prepare('DELETE FROM IdentityClaims WHERE code=? COLLATE NOCASE').run(code);
   return {
     ok: true,
-    alreadyLinked: !!existing,
+    alreadyLinked: link.alreadyLinked,
     discordSubject: claim.discordSubject,
     discordName: String(claim.discordName || ''),
     ircAccount: targetAccount
@@ -176,5 +194,6 @@ module.exports = {
   expandPermissionSubjects,
   generateCode,
   getLink,
+  linkIdentity,
   resolveIdentity
 };

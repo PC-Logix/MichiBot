@@ -5,6 +5,7 @@ const identities = require('../services/identityLinks');
 const points = require('../services/internetPoints');
 const rpg = require('../services/rpg');
 const world = require('../services/rpgWorld');
+const ADMIN = { globalRank: 'Admin' };
 const { addressedSay, text } = require('../utils/helper');
 
 async function verifiedDiscordSubject(ctx) {
@@ -28,6 +29,10 @@ module.exports = {
     name: 'claim',
     access: { public: true },
     help: 'Link your Discord identity to your authenticated IRC account.'
+  }, {
+    name: 'linkdiscord',
+    access: ADMIN,
+    help: 'Admin: link a Discord user ID to a NickServ account.'
   }],
 
   init() {
@@ -36,7 +41,37 @@ module.exports = {
   },
 
   async handleCommand(ctx) {
-    const code = text(ctx).split(/\s+/)[0] || '';
+    const raw = text(ctx);
+
+    if (ctx.command === 'linkdiscord') {
+      const [discordId = '', account = ''] = raw.split(/\s+/);
+      if (!/^\d+$/.test(discordId) || !account) {
+        return addressedSay(ctx, `Usage: ${ctx.prefix}linkdiscord <discord-user-id> <nickserv-account>`);
+      }
+
+      try {
+        const complete = getDb().transaction(() => {
+          const result = identities.linkIdentity(`discord:${discordId}`, account);
+          if (result.ok) {
+            result.characterMerge = rpg.mergeIdentity(result.discordSubject, result.ircAccount, ctx.nick);
+            result.worldMerge = world.mergeIdentity(result.discordSubject, result.ircAccount, ctx.nick);
+            result.pointsMerge = points.mergeIdentity(result.discordSubject, result.ircAccount);
+          }
+          return result;
+        });
+        const result = complete();
+        if (!result.ok && result.reason === 'linked') {
+          return addressedSay(ctx, `That Discord identity is already linked to IRC account ${result.ircAccount}.`);
+        }
+        return addressedSay(ctx, result.alreadyLinked ?
+          `${result.discordSubject} is already linked to IRC account ${result.ircAccount}.` :
+          `${result.discordSubject} is now linked to IRC account ${result.ircAccount}. Identity, permissions, RPG progress, and points are shared.`);
+      } catch (error) {
+        return addressedSay(ctx, error.message);
+      }
+    }
+
+    const code = raw.split(/\s+/)[0] || '';
 
     if (ctx.isBridge) {
       if (code) return addressedSay(ctx, `Submit claim codes from IRC. Run ${ctx.prefix}claim without a code here to create one.`);
