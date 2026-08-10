@@ -44,8 +44,9 @@ module.exports = {
     const raw = text(ctx);
 
     if (ctx.command === 'linkdiscord') {
-      const [discordId = '', account = ''] = raw.split(/\s+/);
-      if (!/^\d+$/.test(discordId) || !account) {
+      const parts = raw ? raw.split(/\s+/) : [];
+      const [discordId = '', account = ''] = parts;
+      if (parts.length !== 2 || !/^\d+$/.test(discordId) || !account) {
         return addressedSay(ctx, `Usage: ${ctx.prefix}linkdiscord <discord-user-id> <nickserv-account>`);
       }
 

@@ -38,10 +38,11 @@ function discordSubject(value) {
 
 function ircAccount(value) {
   const normalized = String(value || '').trim();
-  if (!normalized || normalized === '*' || /\s/.test(normalized)) {
+  const account = normalized.replace(/^acct:/i, '');
+  if (!account || account === '*' || /\s/.test(account)) {
     throw new Error('A valid NickServ account is required.');
   }
-  return normalized.replace(/^acct:/i, '');
+  return account;
 }
 
 function cleanupExpired(now = Date.now()) {
