@@ -77,7 +77,8 @@ function bindIrcEvents({
   buildContext,
   currentPrefixRef,
   normalizeMessage,
-  reply
+  reply,
+  getStartupChannels
 }) {
   capabilityManager.bindEvents();
 
@@ -222,7 +223,8 @@ function bindIrcEvents({
     logger.log('Connected and registered');
     logger.log(`[caps] Enabled: ${capabilityManager.getEnabledCaps().join(', ') || '(none acknowledged yet)'}`);
 
-    for (const channelName of config.channels || []) {
+    const startupChannels = typeof getStartupChannels === 'function' ? getStartupChannels() : (config.channels || []);
+    for (const channelName of startupChannels) {
       client.join(channelName);
     }
   });

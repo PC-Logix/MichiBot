@@ -131,3 +131,8 @@ dist
 *.zip
 config.json
 /data
+
+# Legacy LanteaBot SQLite database and SQLite sidecar files
+michibot.db
+michibot.db-shm
+michibot.db-wal

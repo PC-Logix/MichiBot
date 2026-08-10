@@ -5,6 +5,7 @@ const IRC = require('irc-framework');
 const config = require('./config.json');
 
 const permissions = require('./services/permissions.js');
+const channels = require('./services/channels');
 const accountState = require('./utils/accountState');
 const channelState = require('./utils/channelState');
 const {
@@ -53,6 +54,7 @@ const REQUESTED_CAPS = [
 ];
 
 permissions.init();
+channels.initialize(config.channels || []);
 
 const client = new IRC.Client();
 const commandRegistry = new Map();
@@ -298,7 +300,8 @@ const contextFactory = createContextFactory({
   normalizeCommandName,
   logger,
   stateHelpers,
-  configPath
+  configPath,
+  channelStore: channels
 });
 
 const webServer = createWebServer({
@@ -339,7 +342,8 @@ bindIrcEvents({
   buildContext: contextFactory.buildContext,
   currentPrefixRef,
   normalizeMessage,
-  reply: contextFactory.reply
+  reply: contextFactory.reply,
+  getStartupChannels: channels.list
 });
 
 

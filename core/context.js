@@ -21,7 +21,8 @@ function createContextFactory({
   normalizeCommandName,
   logger,
   stateHelpers,
-  configPath
+  configPath,
+  channelStore
 }) {
   function reply(target, message) {
     client.say(target, message);
@@ -222,6 +223,7 @@ function createContextFactory({
             };
           }
 
+          if (channelStore && typeof channelStore.remove === 'function') channelStore.remove(target);
           client.part(target, message || undefined);
           return {
             ok: true,
@@ -237,6 +239,7 @@ function createContextFactory({
             };
           }
 
+          if (channelStore && typeof channelStore.add === 'function') channelStore.add(target);
           client.join(target, key || undefined);
           return {
             ok: true,
