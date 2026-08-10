@@ -75,6 +75,20 @@ function createWebServer({
     });
   });
 
+  app.get('/rpg', (req, res) => {
+    const activityConfig = config.rpg?.activity || {};
+    res.render('rpg', {
+      title: 'RPG Guide',
+      rpg: data.getRpgGuide(config.rpg?.story),
+      activity: {
+        enabled: activityConfig.enabled !== false,
+        xp: Number.isFinite(Number(activityConfig.xp)) && Number(activityConfig.xp) > 0 ? Number(activityConfig.xp) : 0.25,
+        cooldownSeconds: Number.isFinite(Number(activityConfig.cooldownSeconds)) && Number(activityConfig.cooldownSeconds) >= 0 ? Number(activityConfig.cooldownSeconds) : 60,
+        minLength: Number.isFinite(Number(activityConfig.minLength)) && Number(activityConfig.minLength) > 0 ? Math.floor(Number(activityConfig.minLength)) : 3
+      }
+    });
+  });
+
   app.get('/quotes', (req, res) => {
     res.render('quotes', {
       title: 'Quotes',

@@ -1,0 +1,173 @@
+<%- include('partials/header') %>
+
+<div class="card rpg-hero">
+  <h2>A small persistent multiplayer MUD, played entirely through chat</h2>
+  <p>Explore JSON-defined stories, fight personal encounters, claim shared discoveries, earn XP, and build one character across IRC and Discord.</p>
+  <div class="quick-sequence" aria-label="RPG quick start commands">
+    <code><%= prefix %>rpg enable</code>
+    <code><%= prefix %>rpg start</code>
+    <code><%= prefix %>rpg go north</code>
+    <code><%= prefix %>rpg explore</code>
+    <code><%= prefix %>rpg attack</code>
+  </div>
+  <p class="help-extra"><strong>Note:</strong> enabling or disabling the RPG requires a channel moderator. Once enabled, anyone in the channel can play. <code><%= prefix %>mud</code> is an alias for <code><%= prefix %>rpg</code>.</p>
+</div>
+
+<div class="rpg-grid">
+  <section class="card">
+    <h2>1. Enter and look around</h2>
+    <p><code><%= prefix %>rpg start</code> prints the active story introduction and describes your current room. It does not erase or restart your character.</p>
+    <ul>
+      <li><code><%= prefix %>rpg look</code> or <code><%= prefix %>rpg l</code> — describe the room, exits, current enemy, and shared finds.</li>
+      <li><code><%= prefix %>rpg map</code> — show the story's compact map.</li>
+      <li><code><%= prefix %>rpg who</code> — list other players currently in your room.</li>
+    </ul>
+  </section>
+
+  <section class="card">
+    <h2>2. Move between rooms</h2>
+    <p>Use <code><%= prefix %>rpg go &lt;direction&gt;</code>, a full direction, or its one-letter abbreviation.</p>
+    <div class="command-cloud">
+      <% for (const direction of [['north', 'n'], ['south', 's'], ['east', 'e'], ['west', 'w'], ['up', 'u'], ['down', 'd']]) { %>
+        <span class="direction-pair"><code><%= prefix %>rpg <%= direction[0] %></code> <span>/</span> <code><%= prefix %>rpg <%= direction[1] %></code></span>
+      <% } %>
+    </div>
+    <p>You cannot move normally while an enemy blocks the way. Defeat it or flee first.</p>
+  </section>
+
+  <section class="card">
+    <h2>3. Find and fight enemies</h2>
+    <ul>
+      <li><code><%= prefix %>rpg explore</code> — start a random encounter from the room's encounter table.</li>
+      <li><code><%= prefix %>rpg attack</code> or <code><%= prefix %>rpg fight</code> — attack, then receive the enemy's retaliation if it survives.</li>
+      <li><code><%= prefix %>rpg defend</code> or <code><%= prefix %>rpg guard</code> — reduce incoming damage while holding your ground.</li>
+      <li><code><%= prefix %>rpg flee [direction]</code> or <code><%= prefix %>rpg run [direction]</code> — try to escape, choosing an exit or letting the bot choose.</li>
+    </ul>
+    <p>Victories award XP and gold. Defeat returns you to the story entrance at full health and costs half your gold. Encounters and enemy health belong to your character; another player cannot kill or strand your enemy.</p>
+  </section>
+
+  <section class="card">
+    <h2>4. Search shared discoveries</h2>
+    <p><code><%= prefix %>rpg search</code> looks for story-defined chests, caches, lockers, shrines, and similar finds. Rewards may include gold, XP, or healing.</p>
+    <p>Discoveries are genuinely multiplayer: once one person claims a find, it is unavailable to everyone until its cooldown expires. <code><%= prefix %>rpg look</code> shows who used it and when it returns. Searching is unavailable during combat.</p>
+  </section>
+</div>
+
+<section class="card">
+  <h2>Characters, XP, and leveling</h2>
+  <div class="rpg-grid compact-grid">
+    <div>
+      <h3>Inspect your character</h3>
+      <ul>
+        <li><code><%= prefix %>rpg stats</code> — health, level, XP, combat stats, room, gold, and victories.</li>
+        <li><code><%= prefix %>rpg status</code> — a plain-language health description.</li>
+        <li><code><%= prefix %>rpg gold</code> — current gold and victory count.</li>
+        <li><code><%= prefix %>rpg rest</code> — fully heal in a safe room; resting has a one-minute cooldown.</li>
+      </ul>
+    </div>
+    <div>
+      <h3>Choose a stat after leveling</h3>
+      <p>A public announcement lists the offered gains. Choose exactly one before you can level again:</p>
+      <div class="command-cloud">
+        <% for (const stat of ['strength', 'defense', 'accuracy', 'dodge']) { %>
+          <code><%= prefix %>rpg <%= stat %></code>
+        <% } %>
+      </div>
+    </div>
+  </div>
+  <div class="notice-box">
+    <% if (activity.enabled) { %>
+      Ordinary channel conversation currently awards <strong><%= activity.xp %> XP</strong> at most once every <strong><%= activity.cooldownSeconds %> seconds</strong>. Messages must contain a letter or number and be at least <strong><%= activity.minLength %> characters</strong>. Commands and private messages do not count.
+    <% } else { %>
+      Ordinary-channel activity XP is currently disabled in configuration.
+    <% } %>
+    Use <code><%= prefix %>rpg activity</code> to ask the bot for its current activity-XP settings.
+  </div>
+</section>
+
+<section class="card">
+  <h2>Link Discord and IRC</h2>
+  <p>Linked identities share permissions, RPG progress, activity XP, and Internet Points. The authenticated IRC/NickServ account becomes the canonical identity.</p>
+  <ol>
+    <li>From Discord, run <code><%= prefix %>claim</code>. The bot publicly returns a seven-character code valid for ten minutes.</li>
+    <li>While identified to the desired IRC account, run <code><%= prefix %>claim &lt;code&gt;</code>.</li>
+  </ol>
+  <p>If separate RPG records already exist, the link keeps the highest progression values, combines gold and counters, and removes the duplicate Discord record. An admin can directly link an identity with <code><%= prefix %>linkdiscord &lt;discord-user-id&gt; &lt;nickserv-account&gt;</code>.</p>
+</section>
+
+<section class="card">
+  <h2>Complete command reference</h2>
+  <div class="table-wrap">
+    <table class="rpg-command-table">
+      <tr><th>Command</th><th>Aliases</th><th>What it does</th><th>Access</th></tr>
+      <tr><td><code><%= prefix %>rpg</code> / <code>state</code></td><td><code><%= prefix %>mud</code></td><td>Report whether RPG is enabled in this channel.</td><td>Anyone</td></tr>
+      <tr><td><code><%= prefix %>rpg enable|disable</code></td><td></td><td>Enable or disable RPG commands and activity XP for this channel.</td><td>Channel Moderator</td></tr>
+      <tr><td><code><%= prefix %>rpg start</code></td><td></td><td>Print the story introduction and look at your current room.</td><td>Anyone</td></tr>
+      <tr><td><code><%= prefix %>rpg look</code></td><td><code>l</code></td><td>Describe the current room, exits, enemy, and shared discoveries.</td><td>Anyone</td></tr>
+      <tr><td><code><%= prefix %>rpg go &lt;direction&gt;</code></td><td><code>n s e w u d</code></td><td>Move through a listed exit.</td><td>Anyone</td></tr>
+      <tr><td><code><%= prefix %>rpg explore</code></td><td></td><td>Start a personal random encounter.</td><td>Anyone</td></tr>
+      <tr><td><code><%= prefix %>rpg search</code></td><td></td><td>Claim an available shared discovery.</td><td>Anyone</td></tr>
+      <tr><td><code><%= prefix %>rpg attack</code></td><td><code>fight</code></td><td>Attack the current enemy.</td><td>Anyone</td></tr>
+      <tr><td><code><%= prefix %>rpg defend</code></td><td><code>guard</code></td><td>Brace against the enemy's next attack.</td><td>Anyone</td></tr>
+      <tr><td><code><%= prefix %>rpg flee [direction]</code></td><td><code>run</code></td><td>Try to escape combat.</td><td>Anyone</td></tr>
+      <tr><td><code><%= prefix %>rpg rest</code></td><td><code>sleep</code></td><td>Fully heal in a safe room, subject to cooldown.</td><td>Anyone</td></tr>
+      <tr><td><code><%= prefix %>rpg who</code></td><td></td><td>Show other players in your room.</td><td>Anyone</td></tr>
+      <tr><td><code><%= prefix %>rpg map</code></td><td></td><td>Print the active story's compact map.</td><td>Anyone</td></tr>
+      <tr><td><code><%= prefix %>rpg stats|status|gold</code></td><td></td><td>Inspect character progression, health, and wealth.</td><td>Anyone</td></tr>
+      <tr><td><code><%= prefix %>rpg activity</code></td><td></td><td>Show passive channel-activity XP settings.</td><td>Anyone</td></tr>
+      <tr><td><code><%= prefix %>rpg strength|defense|accuracy|dodge</code></td><td></td><td>Apply one pending stat gain after leveling.</td><td>Anyone</td></tr>
+      <tr><td><code><%= prefix %>rpg story</code></td><td></td><td>Show the active and available story packs.</td><td>Anyone</td></tr>
+      <tr><td><code><%= prefix %>rpg story &lt;id&gt;</code></td><td></td><td>Switch the active story for everybody.</td><td>Admin</td></tr>
+      <tr><td><code><%= prefix %>rpg reloadstory</code></td><td></td><td>Reload edited JSON for the active story.</td><td>Admin</td></tr>
+      <tr><td><code><%= prefix %>rpg givexp &lt;user&gt; &lt;amount&gt;</code></td><td></td><td>Grant character XP and announce a resulting level-up.</td><td>Admin</td></tr>
+    </table>
+  </div>
+</section>
+
+<section class="card">
+  <h2>Installed story packs</h2>
+  <p>The active story is <code><%= rpg.activeStory %></code>. Switching stories moves players to the new entrance on their next RPG command while preserving character progression, gold, and victories.</p>
+  <div class="rpg-grid">
+    <% for (const story of rpg.stories) { %>
+      <article class="story-card <%= story.active ? 'active-story' : '' %>">
+        <h3><%= story.title %> <code><%= story.id %></code> <% if (story.active) { %><span class="status-pill">active</span><% } %></h3>
+        <% if (story.error) { %>
+          <p class="bad"><%= story.error %></p>
+        <% } else { %>
+          <p><%= story.intro %></p>
+          <dl class="story-facts">
+            <dt>Entrance</dt><dd><%= story.startRoom %></dd>
+            <dt>Content</dt><dd><%= story.roomCount %> rooms, <%= story.enemyCount %> enemies, <%= story.discoveries.length %> shared finds</dd>
+            <dt>Safe rooms</dt><dd><%= story.safeRooms.join(', ') || 'None' %></dd>
+            <dt>Map</dt><dd><%= story.mapText %></dd>
+          </dl>
+          <% if (story.discoveries.length) { %>
+            <h4>Shared finds</h4>
+            <ul>
+              <% for (const find of story.discoveries) { %>
+                <li><strong><%= find.name %></strong> in <%= find.rooms.join(', ') || 'an unassigned room' %> — <%= find.reward %>; returns after <%= find.cooldown %>.</li>
+              <% } %>
+            </ul>
+          <% } %>
+        <% } %>
+      </article>
+    <% } %>
+  </div>
+</section>
+
+<section class="card">
+  <h2>Creating or editing a JSON story</h2>
+  <p>Story packs live in <code>resources/rpg/stories/</code>. Copy an existing pack, then make the filename and top-level <code>id</code> match. Use <code><%= prefix %>rpg reloadstory</code> after editing the active pack.</p>
+  <div class="table-wrap">
+    <table>
+      <tr><th>Object</th><th>Required fields</th><th>Optional fields and references</th></tr>
+      <tr><td>Story</td><td><code>id</code>, <code>title</code>, <code>intro</code>, <code>startRoom</code>, <code>mapText</code>, <code>rooms</code>, <code>enemies</code></td><td><code>discoveries</code>; <code>startRoom</code> must name an existing room.</td></tr>
+      <tr><td>Room</td><td><code>name</code>, <code>description</code>, <code>exits</code></td><td><code>safe</code>, <code>encounters</code>, <code>discoveries</code>. Every exit and referenced ID must exist.</td></tr>
+      <tr><td>Enemy</td><td><code>name</code>, <code>level</code>, <code>health</code>, <code>attack</code>, <code>defense</code>, <code>accuracy</code>, <code>dodge</code>, <code>die</code>, <code>xp</code>, <code>gold: [min, max]</code></td><td><code>encounterText</code>, <code>victoryText</code></td></tr>
+      <tr><td>Discovery</td><td><code>name</code>, <code>foundText</code>, <code>cooldownSeconds</code></td><td><code>gold: [min, max]</code>, <code>xp</code>, <code>heal</code></td></tr>
+    </table>
+  </div>
+  <p>Room, enemy, discovery, and story IDs may contain lowercase letters, numbers, underscores, and hyphens. The loader rejects broken exits, missing references, invalid reward ranges, and malformed packs with a useful error.</p>
+</section>
+
+<%- include('partials/footer') %>

@@ -3,6 +3,7 @@
 const crypto = require('crypto');
 const { getDb, tableExists, getDbPath } = require('../libs/db');
 const { getHelpMetadata } = require('../libs/helpMetadata');
+const storyPacks = require('../services/rpgStory');
 
 function db() {
   return getDb();
@@ -78,6 +79,7 @@ function getNav() {
   return [
     { name: 'Home', href: '/' },
     { name: 'Help', href: '/help' },
+    { name: 'RPG Guide', href: '/rpg' },
     { name: 'Quotes', href: '/quotes' },
     { name: 'Tonk', href: '/tonk' },
     { name: 'WhoPinged', href: '/whopinged' },
@@ -86,6 +88,51 @@ function getNav() {
     { name: 'Potions', href: '/potions' },
     { name: 'Dynamic Commands', href: '/dyncmds' }
   ];
+}
+
+function discoveryReward(discovery) {
+  const rewards = [];
+  if (Array.isArray(discovery.gold)) rewards.push(`${discovery.gold[0]}-${discovery.gold[1]} gold`);
+  if (Number(discovery.xp || 0) > 0) rewards.push(`${discovery.xp} XP`);
+  if (Number(discovery.heal || 0) > 0) rewards.push(`${discovery.heal} health`);
+  return rewards.join(', ') || 'story effect';
+}
+
+function getRpgGuide(configuredStory = '') {
+  let activeStory = String(configuredStory || storyPacks.configuredStory());
+  if (hasTable('RPGWorldSettings')) {
+    const selected = db().prepare('SELECT value FROM RPGWorldSettings WHERE key=?').get('activeStory');
+    if (selected?.value) activeStory = String(selected.value);
+  }
+
+  const stories = storyPacks.listStories().map(id => {
+    try {
+      const story = storyPacks.loadStory(id);
+      const roomEntries = Object.entries(story.rooms);
+      return {
+        id: story.id,
+        title: story.title,
+        intro: story.intro,
+        mapText: story.mapText,
+        active: story.id.toLowerCase() === activeStory.toLowerCase(),
+        startRoom: story.rooms[story.startRoom]?.name || story.startRoom,
+        roomCount: roomEntries.length,
+        enemyCount: Object.keys(story.enemies).length,
+        safeRooms: roomEntries.filter(([, room]) => room.safe).map(([, room]) => room.name),
+        discoveries: Object.entries(story.discoveries || {}).map(([discoveryId, discovery]) => ({
+          id: discoveryId,
+          name: discovery.name,
+          rooms: roomEntries.filter(([, room]) => (room.discoveries || []).includes(discoveryId)).map(([, room]) => room.name),
+          cooldown: formatDuration(Number(discovery.cooldownSeconds) * 1000),
+          reward: discoveryReward(discovery)
+        }))
+      };
+    } catch (error) {
+      return { id, title: id, active: id.toLowerCase() === activeStory.toLowerCase(), error: error.message };
+    }
+  });
+
+  return { activeStory, stories };
 }
 
 function getStatus() {
@@ -496,6 +543,7 @@ module.exports = {
   getPings,
   getPotionSummary,
   getQuotes,
+  getRpgGuide,
   getStatsGrouped,
   getStatus,
   getTonkMeta,
