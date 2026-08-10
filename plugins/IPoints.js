@@ -2,16 +2,23 @@
 
 const channelState = require('../utils/channelState');
 const points = require('../services/internetPoints');
+const identities = require('../services/identityLinks');
 const { addressedSay, antiPing, say, text } = require('../utils/helper');
 
 async function resolveIdentity(ctx, nick) {
   const target = String(nick || '').trim();
   if (!target) return '';
+  if (ctx.isBridge && target.toLowerCase() === String(ctx.nick || '').toLowerCase() &&
+    typeof ctx.permissions?.getPermissionSubjectsForContext === 'function') {
+    const subjects = await ctx.permissions.getPermissionSubjectsForContext(ctx);
+    const discord = subjects.find(subject => /^discord:\d+$/i.test(subject));
+    if (discord) return identities.resolveIdentity(discord);
+  }
   if (!ctx.isBridge && typeof ctx.bot?.refreshAccount === 'function') {
     const account = await ctx.bot.refreshAccount(target);
-    if (account) return account;
+    if (account) return identities.resolveIdentity(account);
   }
-  return target;
+  return identities.resolveIdentity(target);
 }
 
 function channelHasUser(channel, nick) {
@@ -28,6 +35,7 @@ module.exports = {
 
   init() {
     points.ensureSchema();
+    identities.ensureSchema();
     console.log('[IPoints] initialized');
   },
 

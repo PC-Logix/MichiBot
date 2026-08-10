@@ -146,6 +146,58 @@ function saveCharacter(character) {
   return character;
 }
 
+function mergeIdentity(sourceAccount, targetAccount, targetUserName = '') {
+  const sourceName = identity(sourceAccount);
+  const targetName = identity(targetAccount);
+  if (sourceName.toLowerCase() === targetName.toLowerCase()) return { changed: false };
+  const database = db();
+  const source = database.prepare('SELECT * FROM RPGUsers WHERE LOWER(account)=LOWER(?)').get(sourceName);
+  if (!source) return { changed: false };
+  const target = database.prepare('SELECT * FROM RPGUsers WHERE LOWER(account)=LOWER(?)').get(targetName);
+
+  if (!target) {
+    database.prepare(`
+      UPDATE RPGUsers SET account=?, userName=? WHERE LOWER(account)=LOWER(?)
+    `).run(targetName, String(targetUserName || source.userName || targetName), sourceName);
+    return { changed: true, moved: true, merged: false };
+  }
+
+  const merged = normalizeCharacter({
+    ...target,
+    account: target.account,
+    userName: targetUserName || target.userName || targetName,
+    health: Math.max(Number(target.health || 0), Number(source.health || 0)),
+    xp: Math.max(Number(target.xp || 0), Number(source.xp || 0)),
+    level: Math.max(Number(target.level || 1), Number(source.level || 1)),
+    strength: Math.max(Number(target.strength || 0), Number(source.strength || 0)),
+    defense: Math.max(Number(target.defense || 0), Number(source.defense || 0)),
+    accuracy: Math.max(Number(target.accuracy || 0), Number(source.accuracy || 0)),
+    dodge: Math.max(Number(target.dodge || 0), Number(source.dodge || 0)),
+    gainStrength: Math.max(Number(target.gainStrength || 0), Number(source.gainStrength || 0)),
+    gainDefense: Math.max(Number(target.gainDefense || 0), Number(source.gainDefense || 0)),
+    gainAccuracy: Math.max(Number(target.gainAccuracy || 0), Number(source.gainAccuracy || 0)),
+    gainDodge: Math.max(Number(target.gainDodge || 0), Number(source.gainDodge || 0)),
+    numAttacked: Number(target.numAttacked || 0) + Number(source.numAttacked || 0),
+    numAttacks: Number(target.numAttacks || 0) + Number(source.numAttacks || 0),
+    deaths: Number(target.deaths || 0) + Number(source.deaths || 0),
+    revives: Number(target.revives || 0) + Number(source.revives || 0),
+    lastActivityXp: Math.max(Number(target.lastActivityXp || 0), Number(source.lastActivityXp || 0))
+  });
+  merged.health = Math.min(merged.health, maxHealth(merged));
+  database.prepare(`
+    UPDATE RPGUsers SET
+      userName=@userName, health=@health, xp=@xp, level=@level,
+      strength=@strength, defense=@defense, accuracy=@accuracy, dodge=@dodge,
+      gainStrength=@gainStrength, gainDefense=@gainDefense,
+      gainAccuracy=@gainAccuracy, gainDodge=@gainDodge,
+      numAttacked=@numAttacked, numAttacks=@numAttacks,
+      deaths=@deaths, revives=@revives, lastActivityXp=@lastActivityXp
+    WHERE LOWER(account)=LOWER(@account)
+  `).run(merged);
+  database.prepare('DELETE FROM RPGUsers WHERE LOWER(account)=LOWER(?)').run(sourceName);
+  return { changed: true, moved: false, merged: true };
+}
+
 function maxHealth(character) {
   return 20 + Math.floor(Number(character.level || 1) * 0.2);
 }
@@ -272,6 +324,7 @@ module.exports = {
   getCharacter,
   levelUp,
   maxHealth,
+  mergeIdentity,
   nextLevelThreshold,
   pendingGain,
   saveCharacter,

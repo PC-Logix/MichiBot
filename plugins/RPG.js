@@ -1,6 +1,7 @@
 'use strict';
 
 const optionalHooks = require('../services/optionalHooks');
+const identities = require('../services/identityLinks');
 const rpg = require('../services/rpg');
 const world = require('../services/rpgWorld');
 const { parseCommandMessage } = require('../libs/commandHandler');
@@ -25,18 +26,18 @@ async function hasAccess(ctx, access) {
 async function resolveIdentity(ctx, nick = ctx.nick) {
   const target = String(nick || '').trim();
   if (!target) return '';
-  if (target.toLowerCase() === String(ctx.nick || '').toLowerCase() && ctx.account) return ctx.account;
+  if (target.toLowerCase() === String(ctx.nick || '').toLowerCase() && ctx.account) return identities.resolveIdentity(ctx.account);
   if (!ctx.isBridge && typeof ctx.bot?.refreshAccount === 'function') {
     const account = await ctx.bot.refreshAccount(target);
-    if (account) return account;
+    if (account) return identities.resolveIdentity(account);
   }
   if (target.toLowerCase() === String(ctx.nick || '').toLowerCase() &&
     typeof ctx.permissions?.getPermissionSubjectsForContext === 'function') {
     const subjects = await ctx.permissions.getPermissionSubjectsForContext(ctx);
     const discord = subjects.find(subject => /^discord:/i.test(subject));
-    if (discord) return discord;
+    if (discord) return identities.resolveIdentity(discord);
   }
-  return target;
+  return identities.resolveIdentity(target);
 }
 
 function levelMessage(character, gains) {
@@ -75,6 +76,7 @@ module.exports = {
   init() {
     rpg.ensureSchema();
     world.ensureSchema();
+    identities.ensureSchema();
     optionalHooks.ensureSchema();
     console.log('[RPG] initialized');
   },

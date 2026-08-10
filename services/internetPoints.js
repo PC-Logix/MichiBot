@@ -55,10 +55,24 @@ function addPoint(identity) {
   return setPoints(identity, getPoints(identity) + 1);
 }
 
+function mergeIdentity(sourceIdentity, targetIdentity) {
+  const source = normalizeIdentity(sourceIdentity);
+  const target = normalizeIdentity(targetIdentity);
+  if (!source || !target || source.toLowerCase() === target.toLowerCase()) return { changed: false };
+  const sourceRow = db().prepare('SELECT nick, points FROM InternetPoints WHERE LOWER(nick)=LOWER(?)').get(source);
+  if (!sourceRow) return { changed: false };
+  const sourcePoints = Number(sourceRow.points || 0);
+  const targetPoints = getPoints(target);
+  setPoints(target, targetPoints + sourcePoints);
+  db().prepare('DELETE FROM InternetPoints WHERE LOWER(nick)=LOWER(?)').run(source);
+  return { changed: true, points: targetPoints + sourcePoints };
+}
+
 module.exports = {
   addPoint,
   ensureSchema: db,
   getPoints,
+  mergeIdentity,
   normalizeIdentity,
   setPoints
 };

@@ -139,6 +139,36 @@ function saveState(state) {
   return state;
 }
 
+function mergeIdentity(sourceAccount, targetAccount, targetUserName = '') {
+  const sourceName = identity(sourceAccount);
+  const targetName = identity(targetAccount);
+  if (sourceName.toLowerCase() === targetName.toLowerCase()) return { changed: false };
+  const database = db();
+  const source = database.prepare('SELECT * FROM RPGWorldState WHERE LOWER(account)=LOWER(?)').get(sourceName);
+  if (!source) return { changed: false };
+  const target = database.prepare('SELECT * FROM RPGWorldState WHERE LOWER(account)=LOWER(?)').get(targetName);
+
+  if (!target) {
+    database.prepare(`
+      UPDATE RPGWorldState SET account=?, userName=? WHERE LOWER(account)=LOWER(?)
+    `).run(targetName, String(targetUserName || source.userName || targetName), sourceName);
+    return { changed: true, moved: true, merged: false };
+  }
+
+  database.prepare(`
+    UPDATE RPGWorldState SET userName=?, gold=?, lastRest=?, victories=?
+    WHERE LOWER(account)=LOWER(?)
+  `).run(
+    String(targetUserName || target.userName || targetName),
+    Number(target.gold || 0) + Number(source.gold || 0),
+    Math.max(Number(target.lastRest || 0), Number(source.lastRest || 0)),
+    Number(target.victories || 0) + Number(source.victories || 0),
+    targetName
+  );
+  database.prepare('DELETE FROM RPGWorldState WHERE LOWER(account)=LOWER(?)').run(sourceName);
+  return { changed: true, moved: false, merged: true };
+}
+
 function direction(value) {
   const normalized = String(value || '').trim().toLowerCase();
   return DIRECTION_ALIASES[normalized] || normalized;
@@ -455,6 +485,7 @@ module.exports = {
   getState,
   look,
   mapText,
+  mergeIdentity,
   move,
   playersInRoom,
   reloadActiveStory,

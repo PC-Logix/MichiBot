@@ -9,6 +9,7 @@ const {
 const {
   resolveDiscordUserIdFromBridge
 } = require('../services/bridgeAuth');
+const identityLinks = require('./identityLinks');
 
 const legacyPermissionsPath = path.join(__dirname, '..', 'permissions.json');
 
@@ -568,7 +569,7 @@ function getLocalPermissionSubjects(ctx) {
     }
   }
 
-  return subjects;
+  return identityLinks.expandPermissionSubjects(subjects);
 }
 
 async function getPermissionSubjectsForContext(ctx) {
@@ -586,11 +587,12 @@ async function getPermissionSubjectsForContext(ctx) {
     }
   }
 
-  if (ctx && Array.isArray(subjects)) {
-    ctx.permissionSubjects = subjects.slice();
+  const expanded = identityLinks.expandPermissionSubjects(subjects);
+  if (ctx) {
+    ctx.permissionSubjects = expanded.slice();
   }
 
-  return subjects;
+  return expanded;
 }
 
 function contextHasGlobalRankSync(ctx, rankName) {

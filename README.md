@@ -74,6 +74,8 @@ The optional RPG is a persistent, multiplayer IRC-friendly MUD. Its rooms, exits
 
 Players share discoverable chests, caches, lockers, and shrines. Use `rpg search` to claim an available find; `rpg look` shows whether another player has used it and how long remains before its JSON-defined cooldown expires. Player locations are also shared through `rpg who`, while combat encounters remain personal to each character.
 
+Discord and IRC identities can be linked without an administrator. Run `claim` with no arguments from Discord to receive a public, ten-minute code, then run `claim <code>` while authenticated to the desired IRC account. The linked identities share permissions, RPG progress, ordinary-chat XP, and Internet Points, with the IRC account serving as the canonical data identity.
+
 Select the initial pack with `rpg.story` in `config.json` or the `MICHIBOT_RPG_STORY` environment variable. While the bot is running, an admin can use `rpg story <id>` to switch packs or `rpg reloadstory` after editing the active JSON. Switching stories sends each player to the new entrance on their next RPG command while preserving character stats, XP, gold, and victories.
 
 When RPG is enabled in a channel, ordinary conversation also grants character XP. By default, a user can receive `0.25` XP once per minute for a non-command message containing at least three visible characters. Private messages and bot commands do not count. Configure this with `rpg.activity` in `config.json`.

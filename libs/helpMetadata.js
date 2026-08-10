@@ -24,6 +24,7 @@ const HELP_METADATA = {
   choose: { help: 'Randomly picks a choice for you.', args: 'string' },
   chnick: { help: 'Change the bot nick.', args: 'Nick:string' },
   checkdnsbl: { help: 'Check an address against tracked DNS blocklists.', args: 'Address:string' },
+  claim: { help: 'Link your Discord identity to your authenticated IRC account.', args: '[Code:string]' },
   clearpings: { help: 'Clears your pings from the DB' },
   command: { help: 'Manage dynamic commands.', args: 'SubCommand:string [Params:string]' },
   curseword: { help: 'Holy manbats Batman!' },
