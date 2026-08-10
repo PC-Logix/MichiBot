@@ -341,7 +341,7 @@ function renderLimit({
   splash = false,
   prefix = '#'
 } = {}) {
-  let out = String(randomEntry(potionData.limits) || '').trim();
+  let out = String(randomEntry(potionData.limits) || '');
 
   const con = consistency || randomEntry(potionData.consistencies);
   const app = appearance || randomEntry(potionData.appearances);
@@ -370,7 +370,7 @@ function renderLimit({
   out = rollDiceInString(out, true);
   out = resolveEvades(out);
 
-  return out.replace(/\s+/g, ' ').replace(/\s+([,.!?])/g, '$1').trim();
+  return out.replace(/\s+/g, ' ').replace(/\s+([,.!?])/g, '$1').replace(/\s+$/, '');
 }
 
 function renderEffect(template, {
