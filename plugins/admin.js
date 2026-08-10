@@ -85,6 +85,12 @@ const commandSpecs = [
     access: adminAccess
   },
   {
+    name: 'test',
+    access: {
+      public: true
+    }
+  },
+  {
     name: 'part',
     access: channelOpOrAdminAccess
   },
@@ -131,6 +137,18 @@ function getPrefix(ctx) {
 function reply(ctx, message) {
   if (helper.say) return helper.say(ctx, message);
   return ctx.reply(ctx.replyTarget, message);
+}
+
+function addressedReply(ctx, message) {
+  if (helper.addressedSay) return helper.addressedSay(ctx, message);
+  return reply(ctx, `${ctx.nick}: ${message}`);
+}
+
+async function hasAdminAccess(ctx) {
+  if (!ctx.isBridge && !ctx.account && typeof ctx.bot?.refreshAccount === 'function') {
+    ctx.account = await ctx.bot.refreshAccount(ctx.nick);
+  }
+  return ctx.permissions.canAccessAsync(ctx, adminAccess);
 }
 
 function fullText(ctx) {
@@ -377,6 +395,9 @@ module.exports = {
 
       case 'greet':
         return reply(ctx, 'Lasciate ogne speranza, voi ch\'intrate');
+
+      case 'test':
+        return addressedReply(ctx, await hasAdminAccess(ctx) ? 'Success' : 'No.');
 
       case 'raw': {
         const line = fullText(ctx);

@@ -49,6 +49,8 @@ Modules are loaded as part of the core runtime and are not currently hot-reloada
 
 IRC auto-join channels are stored in the legacy SQLite `Channels(name)` table. On a brand-new database, the `channels` array in `config.json` seeds that table once. The `join` and `part` commands then persist changes to SQLite, and reconnects load the current database list.
 
+Legacy `Ops` rows remain global bot administrators, and legacy `Permissions` rows remain scoped to their stored IRC channel. MichiBot reads both tables directly alongside its newer account and Discord permission assignments; it does not copy or replace the legacy rows.
+
 ## LanteaBot port status
 
 The active LanteaBot features have been ported to JavaScript, including inventory and combat, potions, dynamic commands, reminders and announcements, GitHub and YouTube expansion, moderation, permissions, Internet Points, RPG data, Lua, and the isolated JavaScript sandbox.

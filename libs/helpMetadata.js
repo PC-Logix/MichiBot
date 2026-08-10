@@ -111,6 +111,7 @@ const HELP_METADATA = {
   splash: { help: 'Splash some unfortunate bystander with a potion!', args: 'Target:string [Potion:string]' },
   swspoiler: { help: 'Generates a random spoiler for Star Wars' },
   tell: { help: 'Sends a tell to the supplied user, with the supplied message.', args: 'Nick:string Message:string' },
+  test: { help: 'Test whether you have bot administrator permission.' },
   tonk: { help: 'What is tonk? Tonk is life. For a description of the rules see tonkleaders.' },
   tonkattempts: { help: 'Shows your remaining tonk attempts.' },
   tonkback: { help: 'Move tonk time backward for admin testing.' },

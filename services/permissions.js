@@ -15,6 +15,8 @@ const legacyPermissionsPath = path.join(__dirname, '..', 'permissions.json');
 let permissions = {
   ranks: []
 };
+let legacyGlobalPermissions = [];
+let legacyChannelPermissions = [];
 
 const rankOrder = ['Trusted', 'Moderator', 'Admin'];
 
@@ -44,6 +46,47 @@ function ensurePermissionSchema() {
     CREATE INDEX IF NOT EXISTS idx_permission_rank_subjects_subject
       ON permission_rank_subjects(subject);
   `);
+}
+
+function findTableName(database, wantedName) {
+  return database.prepare(`
+    SELECT name FROM sqlite_master
+    WHERE type='table' AND LOWER(name)=LOWER(?)
+    LIMIT 1
+  `).get(wantedName)?.name || '';
+}
+
+function quoteIdentifier(value) {
+  return `"${String(value).replace(/"/g, '""')}"`;
+}
+
+function readLanteaBotPermissions() {
+  const database = getDb();
+  const opsTable = findTableName(database, 'Ops');
+  const permissionsTable = findTableName(database, 'Permissions');
+  const global = [];
+  const channel = [];
+
+  if (opsTable) {
+    for (const row of database.prepare(`SELECT name FROM ${quoteIdentifier(opsTable)}`).all()) {
+      const subject = makeAccountSubject(row.name);
+      if (subject) global.push({ rank: 'Admin', subject });
+    }
+  }
+
+  if (permissionsTable) {
+    const rows = database.prepare(`SELECT username, channel, level FROM ${quoteIdentifier(permissionsTable)}`).all();
+    for (const row of rows) {
+      const subject = makeAccountSubject(row.username);
+      const rank = canonicalRankName(row.level);
+      const target = String(row.channel || '').trim();
+      if (!subject || !rank || !target) continue;
+      if (target === '*') global.push({ rank, subject });
+      else channel.push({ channel: target, rank, subject });
+    }
+  }
+
+  return { global, channel };
 }
 
 function migrateLegacyUserTableIfNeeded() {
@@ -270,11 +313,16 @@ function loadPermissions() {
     ensurePermissionStorage();
     maybeMigrateLegacyPermissions();
     permissions = readPermissionsFromDb();
+    const legacy = readLanteaBotPermissions();
+    legacyGlobalPermissions = legacy.global;
+    legacyChannelPermissions = legacy.channel;
   } catch (error) {
     console.error('Error loading permissions from SQLite:', error.message);
     permissions = {
       ranks: []
     };
+    legacyGlobalPermissions = [];
+    legacyChannelPermissions = [];
   }
 
   return permissions;
@@ -285,6 +333,9 @@ function savePermissions() {
     ensurePermissionStorage();
     writePermissionsToDb(permissions);
     permissions = readPermissionsFromDb();
+    const legacy = readLanteaBotPermissions();
+    legacyGlobalPermissions = legacy.global;
+    legacyChannelPermissions = legacy.channel;
   } catch (error) {
     console.error('Error saving permissions to SQLite:', error.message);
   }
@@ -332,13 +383,35 @@ function removeSubjectFromRank(subject, rankName = '') {
 }
 
 function listRankAssignments() {
-  return permissions.ranks
-    .map(rank => ({
-      name: String(rank?.name || ''),
-      users: (Array.isArray(rank?.users) ? rank.users : []).slice().sort((a, b) => a.localeCompare(b))
-    }))
-    .filter(rank => rank.name)
+  const grouped = new Map();
+  const add = (rankName, subject) => {
+    const canonical = canonicalRankName(rankName);
+    const normalized = normalizeStoredSubject(subject);
+    if (!canonical || !normalized) return;
+    if (!grouped.has(canonical)) grouped.set(canonical, new Map());
+    grouped.get(canonical).set(subjectKey(normalized), normalized);
+  };
+  for (const rank of permissions.ranks) {
+    for (const subject of Array.isArray(rank.users) ? rank.users : []) add(rank.name, subject);
+  }
+  for (const assignment of legacyGlobalPermissions) add(assignment.rank, assignment.subject);
+  return Array.from(grouped, ([name, users]) => ({
+    name,
+    users: Array.from(users.values()).sort((a, b) => a.localeCompare(b))
+  }))
     .sort((a, b) => rankLevel(a.name) - rankLevel(b.name));
+}
+
+function listChannelRankAssignments() {
+  const grouped = new Map();
+  for (const assignment of legacyChannelPermissions) {
+    const key = `${norm(assignment.channel)}\u0000${norm(assignment.rank)}`;
+    if (!grouped.has(key)) grouped.set(key, { channel: assignment.channel, name: assignment.rank, users: [] });
+    grouped.get(key).users.push(assignment.subject);
+  }
+  return Array.from(grouped.values())
+    .map(row => ({ ...row, users: row.users.sort((a, b) => a.localeCompare(b)) }))
+    .sort((a, b) => a.channel.localeCompare(b.channel) || rankLevel(a.name) - rankLevel(b.name));
 }
 
 function getPermissions() {
@@ -349,9 +422,13 @@ function getRanksForSubject(subject) {
   const wanted = subjectKey(subject);
   if (!wanted) return [];
 
-  return permissions.ranks.filter(rank =>
+  const ranks = permissions.ranks.filter(rank =>
     Array.isArray(rank?.users) && rank.users.some(user => subjectKey(user) === wanted)
   );
+  for (const assignment of legacyGlobalPermissions) {
+    if (subjectKey(assignment.subject) === wanted) ranks.push({ name: assignment.rank, users: [assignment.subject], legacy: true });
+  }
+  return ranks;
 }
 
 function getHighestRankForSubject(subject) {
@@ -361,6 +438,34 @@ function getHighestRankForSubject(subject) {
   return ranks
     .slice()
     .sort((a, b) => rankLevel(b?.name) - rankLevel(a?.name))[0] || null;
+}
+
+function getRanksForSubjectsInChannel(subjects, channel = '') {
+  const wantedSubjects = new Set((Array.isArray(subjects) ? subjects : []).map(subjectKey).filter(Boolean));
+  const wantedChannel = norm(channel);
+  const ranks = [];
+
+  for (const rank of permissions.ranks) {
+    if (Array.isArray(rank.users) && rank.users.some(user => wantedSubjects.has(subjectKey(user)))) ranks.push(rank);
+  }
+  for (const assignment of legacyGlobalPermissions) {
+    if (wantedSubjects.has(subjectKey(assignment.subject))) {
+      ranks.push({ name: assignment.rank, users: [assignment.subject], legacy: true });
+    }
+  }
+  if (wantedChannel) {
+    for (const assignment of legacyChannelPermissions) {
+      if (norm(assignment.channel) === wantedChannel && wantedSubjects.has(subjectKey(assignment.subject))) {
+        ranks.push({ name: assignment.rank, users: [assignment.subject], channel: assignment.channel });
+      }
+    }
+  }
+  return ranks;
+}
+
+function getHighestRankForSubjects(subjects, channel = '') {
+  return getRanksForSubjectsInChannel(subjects, channel)
+    .sort((a, b) => rankLevel(b.name) - rankLevel(a.name))[0] || null;
 }
 
 function getRanksForAccount(accountName) {
@@ -383,11 +488,7 @@ function subjectHasRank(subject, rankName) {
   const wantedRank = norm(rankName);
   if (!wantedSubject || !wantedRank) return false;
 
-  return permissions.ranks.some(rank =>
-    norm(rank?.name) === wantedRank &&
-    Array.isArray(rank?.users) &&
-    rank.users.some(user => subjectKey(user) === wantedSubject)
-  );
+  return getRanksForSubject(subject).some(rank => norm(rank?.name) === wantedRank);
 }
 
 function subjectHasAtLeastRank(subject, rankName) {
@@ -407,6 +508,13 @@ function subjectHasAtLeastRank(subject, rankName) {
 function subjectsHaveAtLeastRank(subjects, rankName) {
   const list = Array.isArray(subjects) ? subjects : [];
   return list.some(subject => subjectHasAtLeastRank(subject, rankName));
+}
+
+function subjectsHaveAtLeastRankInChannel(subjects, channel, rankName) {
+  const highest = getHighestRankForSubjects(subjects, channel);
+  if (!highest) return false;
+  const needed = rankLevel(rankName);
+  return needed === -1 ? norm(highest.name) === norm(rankName) : rankLevel(highest.name) >= needed;
 }
 
 function accountHasRank(accountName, rankName) {
@@ -487,12 +595,14 @@ async function getPermissionSubjectsForContext(ctx) {
 
 function contextHasGlobalRankSync(ctx, rankName) {
   const subjects = getLocalPermissionSubjects(ctx);
-  return subjectsHaveAtLeastRank(subjects, rankName);
+  const channel = ctx?.isPrivate ? '' : String(ctx?.to || ctx?.replyTarget || '');
+  return subjectsHaveAtLeastRankInChannel(subjects, channel, rankName);
 }
 
 async function contextHasGlobalRank(ctx, rankName) {
   const subjects = await getPermissionSubjectsForContext(ctx);
-  return subjectsHaveAtLeastRank(subjects, rankName);
+  const channel = ctx?.isPrivate ? '' : String(ctx?.to || ctx?.replyTarget || '');
+  return subjectsHaveAtLeastRankInChannel(subjects, channel, rankName);
 }
 
 function matchesAccessRule(ctx, rule) {
@@ -601,6 +711,8 @@ module.exports = {
   normalizeStoredSubject,
   getRanksForSubject,
   getHighestRankForSubject,
+  getRanksForSubjectsInChannel,
+  getHighestRankForSubjects,
   getRanksForAccount,
   getHighestRank,
   rankLevel,
@@ -613,6 +725,7 @@ module.exports = {
   canonicalRankName,
   getPermissionSubjectsForContext,
   listRankAssignments,
+  listChannelRankAssignments,
   removeSubjectFromRank,
   canAccess,
   canAccessAsync,

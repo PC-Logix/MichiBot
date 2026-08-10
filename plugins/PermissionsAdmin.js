@@ -38,10 +38,16 @@ function highestRankForSubjects(subjects) {
   return ranks.sort((a, b) => permissions.rankLevel(b.name) - permissions.rankLevel(a.name))[0] || null;
 }
 
-function assignmentsText(rankFilter = '') {
+function assignmentsText(rankFilter = '', includeChannels = true) {
   const rows = permissions.listRankAssignments()
     .filter(rank => !rankFilter || rank.name.toLowerCase() === rankFilter.toLowerCase());
-  return rows.map(rank => `${rank.name}: ${rank.users.join(', ') || '(none)'}`).join(' | ') || 'No permission assignments.';
+  const output = rows.map(rank => `${rank.name}: ${rank.users.join(', ') || '(none)'}`);
+  if (includeChannels) {
+    output.push(...permissions.listChannelRankAssignments()
+      .filter(rank => !rankFilter || rank.name.toLowerCase() === rankFilter.toLowerCase())
+      .map(rank => `${rank.channel} ${rank.name}: ${rank.users.join(', ') || '(none)'}`));
+  }
+  return output.join(' | ') || 'No permission assignments.';
 }
 
 module.exports = {
@@ -65,7 +71,8 @@ module.exports = {
     const raw = text(ctx);
 
     if (ctx.command === 'whatami') {
-      const rank = highestRankForSubjects(await currentSubjects(ctx));
+      const subjects = await currentSubjects(ctx);
+      const rank = permissions.getHighestRankForSubjects(subjects, ctx.isPrivate ? '' : ctx.to);
       return say(ctx, rank ? `You are '${rank.name}'` : 'You are nothing! NOTHING!');
     }
 
@@ -76,7 +83,7 @@ module.exports = {
         'Nope.');
     }
 
-    if (ctx.command === 'listadmins') return addressedSay(ctx, assignmentsText('Admin'));
+    if (ctx.command === 'listadmins') return addressedSay(ctx, assignmentsText('Admin', false));
     if (ctx.command === 'listperms') return addressedSay(ctx, assignmentsText(raw));
 
     if (ctx.command === 'addadmin') {
