@@ -22,7 +22,8 @@ function createContextFactory({
   logger,
   stateHelpers,
   configPath,
-  channelStore
+  channelStore,
+  restart
 }) {
   function reply(target, message) {
     client.say(target, message);
@@ -263,6 +264,14 @@ function createContextFactory({
         },
         reloadModule(name) {
           return extensionManager.reloadExtensionByName('modules', name);
+        },
+        restart() {
+          if (typeof restart !== 'function') {
+            return false;
+          }
+
+          restart();
+          return true;
         }
       }
     };

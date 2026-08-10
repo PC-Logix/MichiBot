@@ -127,6 +127,7 @@ const HELP_METADATA = {
   timed: { help: 'Manage timed bans and quiets in this channel.', args: 'SubCommand:string [Nick:string Time:string Reason:string]' },
   unloadplugin: { help: 'Unload a plugin.', args: 'Plugin:string' },
   unignore: { help: 'Remove a user from the global ignore list.', args: 'Nick:string' },
+  update: { help: 'Pull the latest bot code and restart if it changed.' },
   weather: { help: 'Returns weather data for the supplied postal code, or place name.', args: 'Location:string' },
   whatislove: { help: 'The answer to the most question' },
   whatami: { help: 'Show your highest bot permission rank.' },

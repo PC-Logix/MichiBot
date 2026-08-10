@@ -1,5 +1,7 @@
 'use strict';
 
+const path = require('path');
+
 let admin = null;
 let bot = null;
 
@@ -14,6 +16,7 @@ function safeRequireHelper() {
 const helper = safeRequireHelper();
 const { getHelpMetadata } = require('../libs/helpMetadata');
 const ignoreList = require('../services/ignoreList');
+const { updateRepository } = require('../services/botUpdate');
 
 const adminAccess = {
   globalRank: 'Admin'
@@ -104,6 +107,10 @@ const commandSpecs = [
   },
   {
     name: 'cycle',
+    access: adminAccess
+  },
+  {
+    name: 'update',
     access: adminAccess
   },
   {
@@ -427,6 +434,22 @@ module.exports = {
 
         setTimeout(() => joinChannel(ctx, channel, ''), 1500);
         return reply(ctx, `Cycling ${channel}`);
+      }
+
+      case 'update': {
+        const result = await updateRepository(path.resolve(__dirname, '..'));
+
+        if (!result.ok || !result.updated) {
+          return reply(ctx, result.message);
+        }
+
+        reply(ctx, `${result.message} Restarting.`);
+        setTimeout(() => {
+          if (ctx.bot && typeof ctx.bot.restart === 'function') {
+            ctx.bot.restart();
+          }
+        }, 1000);
+        return undefined;
       }
 
       case 'chnick': {

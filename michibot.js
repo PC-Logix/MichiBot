@@ -1,6 +1,7 @@
 'use strict';
 
 const path = require('path');
+const { spawn } = require('child_process');
 const IRC = require('irc-framework');
 const config = require('./config.json');
 
@@ -301,7 +302,8 @@ const contextFactory = createContextFactory({
   logger,
   stateHelpers,
   configPath,
-  channelStore: channels
+  channelStore: channels,
+  restart: () => shutdown('UPDATE', true)
 });
 
 const webServer = createWebServer({
@@ -349,7 +351,7 @@ bindIrcEvents({
 
 let shuttingDown = false;
 
-function shutdown(signal) {
+function shutdown(signal, restart = false) {
   if (shuttingDown) {
     process.exit(1);
     return;
@@ -375,6 +377,32 @@ function shutdown(signal) {
     closeDb();
   } catch (err) {
     logger.error('Error closing SQLite database:', err);
+  }
+
+  try {
+    if (webServer && typeof webServer.stop === 'function') webServer.stop();
+  } catch (err) {
+    logger.error('Error stopping web server:', err);
+  }
+
+  if (restart) {
+    setTimeout(() => {
+      try {
+        const child = spawn(process.execPath, process.execArgv.concat(process.argv.slice(1)), {
+          cwd: __dirname,
+          detached: true,
+          env: process.env,
+          stdio: 'inherit',
+          windowsHide: false
+        });
+        child.unref();
+        process.exit(0);
+      } catch (err) {
+        logger.error('Error starting replacement process:', err);
+        process.exit(1);
+      }
+    }, 250);
+    return;
   }
 
   process.exit(0);
