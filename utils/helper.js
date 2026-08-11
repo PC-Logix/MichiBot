@@ -161,7 +161,7 @@ function parseTargetAndItem(ctx) {
   const match = raw.match(/^([^\s]+)(?:\s+(?:with|using)\s+(.+))?$/i);
   if (match) return {
     target: match[1],
-    item: (match[2] || '').trim()
+    item: stripArgumentConnector(match[2] || '')
   };
 
   const parts = raw.split(/\s+/);
@@ -169,6 +169,10 @@ function parseTargetAndItem(ctx) {
     target: parts.shift() || '',
     item: parts.join(' ').trim()
   };
+}
+
+function stripArgumentConnector(value) {
+  return String(value || '').replace(/^(?:with|using)\s+/i, '').trim();
 }
 
 function doesTargetConsent(target, selfNick) {
@@ -310,6 +314,7 @@ module.exports = {
   itemOrRandom,
   normalizeSelfTarget,
   parseTargetAndItem,
+  stripArgumentConnector,
   pick,
   randInt,
   randomItem,

@@ -115,32 +115,12 @@ function accessRuleMentionsGlobalRank(rule) {
   return false;
 }
 
-function parseCommandMessage({
+function parseNameCommandMessage({
   text,
   currentPrefix,
   client,
   config
 }) {
-  const msg = String(text || '');
-
-  if (msg.startsWith(currentPrefix)) {
-    const raw = msg.slice(currentPrefix.length).trim();
-    if (!raw) {
-      return null;
-    }
-
-    const parts = raw.split(/\s+/);
-    const command = normalizeCommandName(parts.shift());
-
-    return {
-      triggerType: 'prefix',
-      trigger: currentPrefix,
-      raw,
-      command,
-      args: parts
-    };
-  }
-
   if (isNameCommandEnabled(config)) {
     const botNames = getLiveCommandNames({
       client,
@@ -177,6 +157,78 @@ function parseCommandMessage({
   }
 
   return null;
+}
+
+function parsePrefixCommands(msg, currentPrefix) {
+  if (!currentPrefix || !msg.trim()) {
+    return [];
+  }
+
+  const tokens = msg.trim().split(/\s+/);
+  const commandTokens = [];
+  let current = null;
+
+  for (const token of tokens) {
+    if (token.startsWith(currentPrefix) && token.length > currentPrefix.length) {
+      if (current) {
+        commandTokens.push(current);
+      }
+      current = [token];
+    } else if (current) {
+      current.push(token);
+    }
+  }
+
+  if (current) {
+    commandTokens.push(current);
+  }
+
+  return commandTokens.map(parts => {
+    const raw = parts
+      .map((part, index) => index === 0 ? part.slice(currentPrefix.length) : part)
+      .join(' ')
+      .trim();
+    const rawParts = raw.split(/\s+/);
+
+    return {
+      triggerType: 'prefix',
+      trigger: currentPrefix,
+      raw,
+      command: normalizeCommandName(rawParts.shift()),
+      args: rawParts
+    };
+  });
+}
+
+function parseCommandMessages({
+  text,
+  currentPrefix,
+  client,
+  config
+}) {
+  const msg = String(text || '');
+  const prefix = String(currentPrefix || '');
+
+  if (!msg.trim()) {
+    return [];
+  }
+
+  if (prefix && msg.startsWith(prefix)) {
+    return parsePrefixCommands(msg, prefix);
+  }
+
+  const nameCommand = parseNameCommandMessage({
+    text: msg,
+    currentPrefix: prefix,
+    client,
+    config
+  });
+
+  return nameCommand ? [nameCommand] : parsePrefixCommands(msg, prefix);
+}
+
+function parseCommandMessage(options) {
+  return parseCommandMessages(options)[0] || null;
 }
 
 function buildRuntimeContext(baseContext, normalized) {
@@ -373,31 +425,34 @@ async function handleMessage({
     error
   });
 
-  const parsed = parseCommandMessage({
+  const parsedCommands = parseCommandMessages({
     text: normalized.text,
     currentPrefix,
     client,
     config
   });
 
-  if (!parsed) {
+  if (!parsedCommands.length) {
     return;
   }
 
-  await dispatchCommand({
-    parsed,
-    normalized,
-    baseContext,
-    commandRegistry,
-    aliasRegistry,
-    currentPrefix,
-    error,
-    reply
-  });
+  for (const parsed of parsedCommands) {
+    await dispatchCommand({
+      parsed,
+      normalized,
+      baseContext,
+      commandRegistry,
+      aliasRegistry,
+      currentPrefix,
+      error,
+      reply
+    });
+  }
 }
 
 module.exports = {
   handleMessage,
+  parseCommandMessages,
   parseCommandMessage,
   normalizeCommandName,
   resolveCommandInvocation

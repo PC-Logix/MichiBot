@@ -3,7 +3,7 @@
 const combat = require('../services/combat');
 const inventory = require('../services/inventory');
 const { getDefensiveItemBonus, getOffensiveItemBonus } = require('../services/itemBonuses');
-const { addressedSay, say } = require('../utils/helper');
+const { addressedSay, say, stripArgumentConnector } = require('../utils/helper');
 
 const ACTIONS = Object.freeze({
   block: { will: 'block', past: 'blocked' },
@@ -96,7 +96,7 @@ module.exports = {
     const event = combat.takeFirstEventFor(ctx.nick);
     if (!event) return addressedSay(ctx, 'Nothing to defend against right now.');
 
-    const defenseName = args.join(' ').trim();
+    const defenseName = stripArgumentConnector(args.join(' ').trim());
     const defenseItem = defenseName ? inventory.createLooseItem(defenseName) : null;
     const attackBonuses = getOffensiveItemBonus(event.implement);
     const defenseBonuses = defenseItem ? getDefensiveItemBonus(defenseItem) : getDefensiveItemBonus('');

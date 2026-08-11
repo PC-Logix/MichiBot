@@ -1,7 +1,7 @@
 'use strict';
 
 const inventory = require('../services/inventory');
-const { act, addressedSay } = require('../utils/helper');
+const { act, addressedSay, parseTargetAndItem } = require('../utils/helper');
 
 function botNick(ctx) {
   return String(ctx?.client?.user?.nick || ctx?.config?.userName || ctx?.config?.nick || 'MichiBot');
@@ -20,9 +20,7 @@ module.exports = {
   },
 
   handleCommand(ctx) {
-    const args = Array.isArray(ctx.args) ? ctx.args.slice() : [];
-    const target = String(args.shift() || '');
-    const itemName = args.join(' ').trim();
+    const { target, item: itemName } = parseTargetAndItem(ctx);
     const ourNick = botNick(ctx);
 
     if (!target) return addressedSay(ctx, 'Missing required argument: Target');

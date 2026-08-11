@@ -3,7 +3,7 @@
 const combat = require('../services/combat');
 const inventory = require('../services/inventory');
 const { getOffensiveItemBonus, ItemBonusCollection } = require('../services/itemBonuses');
-const { act, addressedSay, antiPing, rollDiceInString, say } = require('../utils/helper');
+const { act, addressedSay, antiPing, parseTargetAndItem, rollDiceInString, say } = require('../utils/helper');
 
 const ACTIONS = Object.freeze({
   stab: { is: 'stabbing', will: 'stab', past: 'stabbed' },
@@ -38,7 +38,7 @@ module.exports = {
     name: 'attack',
     aliases: actionAliases(),
     cooldown: { seconds: 300, perUser: true },
-    help: 'Attack someone and deal damage! Each action can also be used as an alias.'
+    help: "Attack someone and deal damage! Each action can also be used as an alias, with an optional item written with or without 'with'."
   }],
 
   init() {
@@ -49,13 +49,13 @@ module.exports = {
   handleCommand(ctx) {
     const args = Array.isArray(ctx.args) ? ctx.args.slice() : [];
     const method = String(args.shift() || '').toLowerCase();
-    const attackTarget = String(args.shift() || '');
+    const parsedTarget = parseTargetAndItem({ args });
+    const attackTarget = parsedTarget.target;
 
     if (!ACTIONS[method]) return say(ctx, `Specify an action as the first parameter: ${ACTION_LIST}`);
     if (!attackTarget) return addressedSay(ctx, 'Missing required argument: Target');
 
-    let withItem = args.join(' ').trim();
-    if (withItem.startsWith('with')) withItem = withItem.replace(/^with ?/, '');
+    const withItem = parsedTarget.item;
 
     let item = null;
     if (!NON_ITEM_ACTIONS.has(method)) {

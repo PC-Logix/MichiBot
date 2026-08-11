@@ -9,7 +9,8 @@ const {
   antiPingMessage,
   pick,
   randInt,
-  say
+  say,
+  stripArgumentConnector
 } = require('../utils/helper');
 const potionApi = require('./Potions').api;
 
@@ -23,7 +24,7 @@ function parseShellArgs(args) {
   const values = Array.isArray(args) ? args.map(String) : [];
   return {
     targets: [values.shift() || '', values.shift() || '', values.shift() || ''],
-    payload: values.join(' ').trim()
+    payload: stripArgumentConnector(values.join(' ').trim())
   };
 }
 

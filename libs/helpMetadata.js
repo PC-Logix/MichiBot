@@ -11,7 +11,7 @@ const HELP_METADATA = {
   antispam: { help: 'Enable or disable new-user spam protection for this channel.', args: 'State:string' },
   authed: { help: 'Show your authenticated permission identity.' },
   aliases: { help: 'Get aliases for a command, or find the root command for an alias.', args: 'Command:string' },
-  attack: { help: 'Attack someone and deal damage! Each action can also be used as an alias.', args: 'Action:string Target:string [Item:string]' },
+  attack: { help: "Attack someone and deal damage! Each action can also be used as an alias, with an optional item written with or without 'with'.", args: 'Action:string Target:string [Item:string]' },
   alias: { help: 'Get aliases for a command, or find the root command for an alias.', args: 'Command:string' },
   bap: { help: 'Baps someone harmlessly without doing damage!', args: '[Target:string Item:string]' },
   bf: { help: 'Does brainfuck', args: 'string' },

@@ -6,6 +6,7 @@ const {
 
 const {
   pick,
+  parseTargetAndItem,
   randInt,
   say,
   text,
@@ -713,9 +714,8 @@ module.exports = {
         return drinkPotion(ctx, raw);
 
       case 'splash': {
-        const parts = raw.split(/\s+/).filter(Boolean);
-        const targetName = parts.shift();
-        return splashPotion(ctx, targetName, parts.join(' '));
+        const { target: targetName, item: potionText } = parseTargetAndItem(ctx);
+        return splashPotion(ctx, targetName, potionText);
       }
 
       case 'randompotion':
