@@ -284,7 +284,7 @@ function getEffectForPotion(potion, targetName, triggererName, splash = false) {
     splash: source.splash || null,
     discoveredDrink,
     discoveredSplash,
-    discoverer: splash ? `${triggererName} (${targetName})` : targetName,
+    discoverer: splash ? `${triggererName} → ${targetName}` : targetName,
     discoveredAt: nowMs()
   };
 
@@ -456,6 +456,13 @@ function concealedForDisplay(value) {
     .trim();
 }
 
+function formatDiscoverer(value) {
+  const text = String(value || '').trim();
+  const legacySplash = text.match(/^(.+) \(([^()]+)\)$/);
+  if (legacySplash) return `${legacySplash[1]} → ${legacySplash[2]}`;
+  return text;
+}
+
 function potionDescription(potion) {
   return `${potion.consistency.name} ${potion.appearance.name} potion`;
 }
@@ -538,7 +545,7 @@ function potionSummary() {
       potion: `${titleCase(consistency?.name || consistencyKey)} ${titleCase(appearance?.name || appearanceKey)} Potion`,
       effectKey: entry.key,
       effect: concealedForDisplay(entry.discoveredDrink || entry.drink),
-      discoverer: entry.discoverer || '',
+      discoverer: formatDiscoverer(entry.discoverer),
       discoveredAt: entry.discoveredAt || 0
     };
   }).sort((a, b) => String(a.potion).localeCompare(String(b.potion)));
