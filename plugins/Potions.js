@@ -377,13 +377,16 @@ function renderLimit({
 function renderEffect(template, {
   user,
   triggerer,
-  consistency,
-  appearance,
   splash = false,
   prefix = '#'
 } = {}) {
-  const con = consistency || randomEntry(potionData.consistencies);
-  const app = appearance || randomEntry(potionData.appearances);
+  // LanteaBot treated the potion combination and the dynamic effect
+  // parameters as separate things. The potion's consistency/appearance is
+  // used for the potion description and combination key, while effect
+  // placeholders such as {appearance_p_lc} and {consistency_p_lc} resolve to
+  // fresh random values when the effect is rendered.
+  const con = randomEntry(potionData.consistencies);
+  const app = randomEntry(potionData.appearances);
   const app2 = randomEntry(potionData.appearances);
   const codeword = randomEntry(potionData.codeWords) || 'mew';
   const codeword2 = randomEntry(potionData.codeWords.filter(w => w !== codeword)) || 'nyan';
