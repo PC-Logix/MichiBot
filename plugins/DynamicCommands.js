@@ -219,6 +219,27 @@ function runJavaScript(code) {
   }
 }
 
+async function runLanguagePrefixedSegments(message, luaContext, luaOptions) {
+  const matches = Array.from(String(message || '').matchAll(/\[(js|lua)\]/gi));
+  if (!matches.length || matches[0].index !== 0) return null;
+
+  const results = [];
+  for (let i = 0; i < matches.length; i += 1) {
+    const match = matches[i];
+    const start = match.index + match[0].length;
+    const end = i + 1 < matches.length ? matches[i + 1].index : message.length;
+    const code = message.slice(start, end).trim();
+
+    if (match[1].toLowerCase() === 'js') {
+      results.push(runJavaScript(code));
+    } else {
+      results.push(await runLuaSnippet(code, luaContext, luaOptions));
+    }
+  }
+
+  return results.join(' ');
+}
+
 function extractAliases(message) {
   const aliases = [];
   const cleaned = String(message || '').replace(/%(\w*?)%/g, (full, name) => {
@@ -321,15 +342,9 @@ async function parsePlaceholders(message, ctx, args) {
     maxOutputLength: Number(ctx.config?.luaSandbox?.maxOutputLength || 2000)
   };
 
-  if (/^\[js\]/i.test(out)) {
-    out = runJavaScript(out.replace(/^\[js\]/i, '').trim());
-  } else if (/^\[lua\]/i.test(out)) {
+  if (/^\[(?:js|lua)\]/i.test(out)) {
     try {
-      out = await runLuaSnippet(
-        out.replace(/^\[lua\]/i, '').trim(),
-        luaContext,
-        luaOptions
-      );
+      out = await runLanguagePrefixedSegments(out, luaContext, luaOptions);
     } catch (err) {
       out = err.message || String(err);
     }
@@ -581,7 +596,7 @@ module.exports = {
         return say(ctx, "Valid placeholders: %command% - Where 'command' is a different dyn-command. [randomitem] - Inserts a random item from the inventory. {junk_or_item} - Inserts a random lowercase item or junk name without its prefix. [drama] - ??. [argument] - The entire argument string. [nick] - The name of the caller. {n} - Where n is the number of an argument word starting at 0.");
 
       case 'prefixes':
-        return say(ctx, 'Valid prefixes: [js] - Attempts to parse the dyn-command contents as javascript. [lua] - Runs the dyn-command contents through the Lua sandbox. [action] - Sends an ACTION instead of a normal message.');
+        return say(ctx, 'Valid prefixes: [js] - Attempts to parse the dyn-command contents as javascript. [lua] - Runs the dyn-command contents through the Lua sandbox. [js] and [lua] segments may be combined in one dynamic command. [action] - Sends an ACTION instead of a normal message.');
 
       case 'list': {
         const names = allCommands().map(row => row.command);
