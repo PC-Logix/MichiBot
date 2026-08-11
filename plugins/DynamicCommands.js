@@ -3,6 +3,7 @@
 const vm = require('vm');
 const { getDb } = require('../libs/db');
 const inventory = require('../services/inventory');
+const potionData = require('../utils/potionData');
 const { say, act, text, pick } = require('../utils/helper');
 const { runLuaSnippet } = require('../utils/luaSandbox');
 
@@ -157,6 +158,20 @@ function randomInventoryItem() {
   }
 }
 
+function randomJunkOrItem() {
+  try {
+    const item = inventory.getRandomItem(true);
+    if (item && Math.random() < 0.5) {
+      return item.getNameWithoutPrefix().toLowerCase();
+    }
+  } catch (_) {
+    // Fall back to a junk item when the inventory is unavailable or empty.
+  }
+
+  const garbage = pick(potionData.garbageItems || []);
+  return garbage && garbage[1] ? String(garbage[1]).toLowerCase() : 'nothing';
+}
+
 function dramaParse() {
   const options = [
     'the drama llama has arrived',
@@ -282,6 +297,7 @@ async function parsePlaceholders(message, ctx, args) {
   const argumentString = args.join(' ');
   
   out = replaceLegacyRandomRanges(out);
+  out = out.replace(/\{junk_or_item\}/gi, () => randomJunkOrItem());
   out = out.replace(/\[randomitem\]/gi, () => randomInventoryItem() || 'something');
   out = out.replace(/\[drama\]/gi, () => dramaParse());
   out = out.replace(/\[argument\]/gi, argumentString);
@@ -562,7 +578,7 @@ module.exports = {
         return say(ctx, 'To add an alias create a dynamic command with one or more commands to execute between two % like %command%.');
 
       case 'placeholders':
-        return say(ctx, "Valid placeholders: %command% - Where 'command' is a different dyn-command. [randomitem] - Inserts a random item from the inventory. [drama] - ??. [argument] - The entire argument string. [nick] - The name of the caller. {n} - Where n is the number of an argument word starting at 0.");
+        return say(ctx, "Valid placeholders: %command% - Where 'command' is a different dyn-command. [randomitem] - Inserts a random item from the inventory. {junk_or_item} - Inserts a random lowercase item or junk name without its prefix. [drama] - ??. [argument] - The entire argument string. [nick] - The name of the caller. {n} - Where n is the number of an argument word starting at 0.");
 
       case 'prefixes':
         return say(ctx, 'Valid prefixes: [js] - Attempts to parse the dyn-command contents as javascript. [lua] - Runs the dyn-command contents through the Lua sandbox. [action] - Sends an ACTION instead of a normal message.');

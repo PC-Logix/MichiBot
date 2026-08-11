@@ -95,6 +95,21 @@ function runRaw(script, resultCount = lua.LUA_MULTRET) {
   return result;
 }
 
+function callLua(code) {
+  lua.lua_settop(L, 0);
+  lua.lua_getglobal(L, asLuaString('lua'));
+  lua.lua_pushstring(L, asLuaString(code));
+
+  const callStatus = lua.lua_pcall(L, 1, lua.LUA_MULTRET, 0);
+  if (callStatus !== lua.LUA_OK) {
+    return { error: popError(L) };
+  }
+
+  const result = stackToString(L);
+  lua.lua_settop(L, 0);
+  return { result };
+}
+
 function runScriptInSandbox(script, context = {}) {
   output = [];
 
@@ -107,17 +122,13 @@ function runScriptInSandbox(script, context = {}) {
     `args = ${luaLiteral(Array.isArray(context.args) ? context.args : [])}`
   ].join('\n');
 
-  lua.lua_settop(L, 0);
-  lua.lua_getglobal(L, asLuaString('lua'));
-  lua.lua_pushstring(L, asLuaString(`${prelude}\n${script}`));
+  const contextResult = callLua(prelude);
+  if (contextResult.error) return contextResult.error;
 
-  const callStatus = lua.lua_pcall(L, 1, lua.LUA_MULTRET, 0);
-  if (callStatus !== lua.LUA_OK) {
-    return popError(L);
-  }
+  const scriptResult = callLua(script);
+  if (scriptResult.error) return scriptResult.error;
 
-  const result = stackToString(L);
-  lua.lua_settop(L, 0);
+  const result = scriptResult.result;
 
   const combined = [];
   if (result) combined.push(result);
