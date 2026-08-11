@@ -482,6 +482,10 @@ module.exports = {
         defaultHelp: DEFAULT_HELP
       });
     });
+
+    ctx.web.registerRouter(ctx.extension.key, '/dyncmds', router, {
+      label: 'Dynamic Commands'
+    });
   },
 
   async handleCommand(ctx) {
