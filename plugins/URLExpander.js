@@ -4,6 +4,7 @@ const {
   stripIrcFormatting
 } = require('../utils/helper');
 const seen = new Map();
+const ENABLED = false;
 
 function findUrls(s) {
   return String(s || '').match(/https?:\/\/[^\s<>]+/ig) || [];
@@ -21,9 +22,11 @@ function titleOf(html) {
 module.exports = {
   name: 'URLExpander',
   init() {
-    console.log('[URLExpander] initialized');
+    console.log('[URLExpander] initialized (disabled)');
   },
   async onMessage(ctx) {
+    if (!ENABLED) return false;
+
     const urls = findUrls(stripIrcFormatting(ctx.text));
     for (const url of urls.slice(0, 2)) {
       if (hasSpecializedExpander(url)) continue;
