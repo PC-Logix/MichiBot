@@ -159,7 +159,7 @@ function parseNameCommandMessage({
   return null;
 }
 
-function parsePrefixCommands(msg, currentPrefix) {
+function parsePrefixCommands(msg, currentPrefix, commandRegistry) {
   if (!currentPrefix || !msg.trim()) {
     return [];
   }
@@ -184,11 +184,25 @@ function parsePrefixCommands(msg, currentPrefix) {
   }
 
   return commandTokens.map(parts => {
+    const first = parts[0].slice(currentPrefix.length);
+    const slash = first.indexOf('/');
+    const attachedCommand = slash > 0 ? normalizeCommandName(first.slice(0, slash)) : '';
+    const hasAttachedCommand = !!attachedCommand && commandRegistry?.has(attachedCommand);
     const raw = parts
       .map((part, index) => index === 0 ? part.slice(currentPrefix.length) : part)
       .join(' ')
       .trim();
     const rawParts = raw.split(/\s+/);
+
+    if (hasAttachedCommand) {
+      return {
+        triggerType: 'prefix',
+        trigger: currentPrefix,
+        raw,
+        command: attachedCommand,
+        args: [first].concat(parts.slice(1))
+      };
+    }
 
     return {
       triggerType: 'prefix',
@@ -204,7 +218,8 @@ function parseCommandMessages({
   text,
   currentPrefix,
   client,
-  config
+  config,
+  commandRegistry
 }) {
   const msg = String(text || '');
   const prefix = String(currentPrefix || '');
@@ -214,7 +229,7 @@ function parseCommandMessages({
   }
 
   if (prefix && msg.startsWith(prefix)) {
-    return parsePrefixCommands(msg, prefix);
+    return parsePrefixCommands(msg, prefix, commandRegistry);
   }
 
   const nameCommand = parseNameCommandMessage({
@@ -224,7 +239,7 @@ function parseCommandMessages({
     config
   });
 
-  return nameCommand ? [nameCommand] : parsePrefixCommands(msg, prefix);
+  return nameCommand ? [nameCommand] : parsePrefixCommands(msg, prefix, commandRegistry);
 }
 
 function parseCommandMessage(options) {
@@ -429,7 +444,8 @@ async function handleMessage({
     text: normalized.text,
     currentPrefix,
     client,
-    config
+    config,
+    commandRegistry
   });
 
   if (!parsedCommands.length) {

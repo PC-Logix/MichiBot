@@ -15,6 +15,14 @@ function channelFor(ctx) {
   return String(ctx?.replyTarget || ctx?.to || '').trim();
 }
 
+function commandPrefix(ctx) {
+  return String(ctx?.prefix || ctx?.bot?.getPrefix?.() || ctx?.config?.commandPrefix || '#');
+}
+
+function isPrefixedSubstitution(ctx) {
+  return String(ctx?.text || '').trim().toLowerCase().startsWith(`${commandPrefix(ctx).toLowerCase()}s/`);
+}
+
 function parseSubstitution(input) {
   const value = String(input || '').trim();
   if (!value.startsWith('s/')) return null;
@@ -95,6 +103,11 @@ module.exports = {
     name: 'sed',
     access: MODERATOR,
     cooldown: { seconds: 10 }
+  }, {
+    name: 's',
+    access: { public: true },
+    hidden: true,
+    cooldown: { seconds: 10 }
   }],
 
   init() {
@@ -109,10 +122,19 @@ module.exports = {
       return;
     }
 
+    if (isPrefixedSubstitution(ctx)) return;
+
     remember(ctx);
   },
 
   handleCommand(ctx) {
+    if (ctx.command === 's') {
+      const substitution = parseSubstitution(text(ctx));
+      if (!substitution) return say(ctx, `Usage: ${commandPrefix(ctx)}s/bleh/meh/`);
+      applySubstitution(ctx, substitution);
+      return;
+    }
+
     const action = text(ctx).toLowerCase();
     const channel = channelFor(ctx);
 
@@ -135,7 +157,9 @@ module.exports = {
     HOOK_NAME,
     MODERATOR,
     applySubstitution,
+    commandPrefix,
     history,
+    isPrefixedSubstitution,
     parseSubstitution,
     remember
   }
