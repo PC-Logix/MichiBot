@@ -4,6 +4,14 @@ const {
   handleMessage
 } = require('../libs/commandHandler');
 
+function redactIrcDebugLine(line) {
+  const text = String(line || '').replace(/[\r\n]+$/, '');
+  if (/^(?:PASS|AUTHENTICATE)\b/i.test(text)) {
+    return `${text.split(/\s+/, 1)[0]} <redacted>`;
+  }
+  return text;
+}
+
 function getExtensions(extensionManager) {
   const loaded = extensionManager.getLoadedExtensions();
 
@@ -81,6 +89,15 @@ function bindIrcEvents({
   getStartupChannels
 }) {
   capabilityManager.bindEvents();
+
+  if (config.debug === true) {
+    client.on('debug', (message) => {
+      logger.log(`[irc] ${message}`);
+    });
+    client.on('raw', ({ line, from_server: fromServer }) => {
+      logger.log(`[irc] ${fromServer ? '<' : '>'} ${redactIrcDebugLine(line)}`);
+    });
+  }
 
   client.on('account', (event) => {
     const nick = String(event?.nick || '').trim();
