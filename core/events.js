@@ -287,6 +287,29 @@ function bindIrcEvents({
     });
   });
 
+  client.on('ctcp response', async (event) => {
+    await dispatchExtensionEvent({
+      extensionManager,
+      logger,
+      handlerNames: [
+        'handleCtcpResponse',
+        'onCtcpResponse',
+        'ctcpResponse'
+      ],
+      event,
+      extra: {
+        client,
+        config,
+        currentPrefix: currentPrefixRef.get(),
+        commandRegistry,
+        aliasRegistry,
+        buildContext,
+        normalizeMessage,
+        reply
+      }
+    });
+  });
+
   client.on('action', async (event) => {
     await dispatchExtensionEvent({
       extensionManager,

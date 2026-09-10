@@ -228,8 +228,9 @@ function makeReplyCtx(data) {
 
 function handleNotice(event) {
   const notice = getNoticeText(event);
+  const isCtcpResponse = String(event?.type || '').toUpperCase() === 'PING' && /^PING(?:\s|$)/i.test(notice);
 
-  if (!notice.startsWith('\x01PING ')) {
+  if (!notice.startsWith('\x01PING ') && !isCtcpResponse) {
     return false;
   }
 
@@ -299,6 +300,9 @@ module.exports = {
   handleNotice,
   onNotice: handleNotice,
   notice: handleNotice,
+  handleCtcpResponse: handleNotice,
+  onCtcpResponse: handleNotice,
+  ctcpResponse: handleNotice,
   handleCtcpRequest,
   onCtcpRequest: handleCtcpRequest,
   ctcpRequest: handleCtcpRequest
