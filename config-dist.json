@@ -3,6 +3,7 @@
     "#example"
   ],
   "server": "irc.example.net",
+  "serverPassword": "",
   "userName": "examplebot",
   "realName": "Example IRC Bot",
   "version": "",

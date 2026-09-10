@@ -49,6 +49,11 @@ The CTCP `VERSION` response can be customized with `version` in `config.json`.
 When omitted or blank, it defaults to the repository URL followed by the short
 Git commit hash, for example `https://github.com/PC-Logix/MichiBot a3e8dee`.
 
+To connect through a bouncer or IRC server that requires a connection password,
+set `serverPassword` in `config.json`. MichiBot sends it as the IRC `PASS`
+command before registering. This is separate from the optional `auth.sasl`
+account password.
+
 Modules are loaded as part of the core runtime and are not currently hot-reloadable.
 
 IRC auto-join channels are stored in the legacy SQLite `Channels(name)` table. On a brand-new database, the `channels` array in `config.json` seeds that table once. The `join` and `part` commands then persist changes to SQLite, and reconnects load the current database list.
