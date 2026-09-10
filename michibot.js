@@ -43,6 +43,11 @@ const {
   checkpointDb
 } = require('./libs/db');
 const { buildIrcConnectionOptions } = require('./core/connectOptions');
+const {
+  clearRestartNotice,
+  getRestartNotice,
+  saveRestartNotice
+} = require('./services/restartNotice');
 
 const REQUESTED_CAPS = [
   'account-notify',
@@ -303,7 +308,7 @@ const contextFactory = createContextFactory({
   stateHelpers,
   configPath,
   channelStore: channels,
-  restart: () => shutdown('UPDATE', true)
+  restart: (notice) => shutdown('UPDATE', true, notice)
 });
 
 const webServer = createWebServer({
@@ -345,13 +350,24 @@ bindIrcEvents({
   currentPrefixRef,
   normalizeMessage,
   reply: contextFactory.reply,
-  getStartupChannels: channels.list
+  getStartupChannels: channels.list,
+  notifyRestartComplete() {
+    const notice = getRestartNotice();
+    if (!notice) return;
+
+    try {
+      client.say(notice.target, notice.message);
+      clearRestartNotice();
+    } catch (err) {
+      logger.error('Unable to send the restart-complete notice:', err);
+    }
+  }
 });
 
 
 let shuttingDown = false;
 
-function shutdown(signal, restart = false) {
+function shutdown(signal, restart = false, restartNotice = null) {
   if (shuttingDown) {
     process.exit(1);
     return;
@@ -359,6 +375,10 @@ function shutdown(signal, restart = false) {
 
   shuttingDown = true;
   logger.warn(`${signal} received; shutting down`);
+
+  if (restart && restartNotice && !saveRestartNotice(restartNotice)) {
+    logger.warn('Unable to save the restart-complete notice');
+  }
 
   try {
     if (stateHelpers && typeof stateHelpers.dispose === 'function') stateHelpers.dispose();

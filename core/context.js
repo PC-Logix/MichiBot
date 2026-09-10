@@ -265,12 +265,12 @@ function createContextFactory({
         reloadModule(name) {
           return extensionManager.reloadExtensionByName('modules', name);
         },
-        restart() {
+        restart(notice) {
           if (typeof restart !== 'function') {
             return false;
           }
 
-          restart();
+          restart(notice);
           return true;
         }
       }

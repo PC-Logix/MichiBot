@@ -446,7 +446,10 @@ module.exports = {
         reply(ctx, `${result.message} Restarting.`);
         setTimeout(() => {
           if (ctx.bot && typeof ctx.bot.restart === 'function') {
-            ctx.bot.restart();
+            ctx.bot.restart({
+              target: ctx.replyTarget || ctx.to,
+              message: 'Update complete; restart finished.'
+            });
           }
         }, 1000);
         return undefined;

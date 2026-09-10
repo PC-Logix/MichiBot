@@ -86,7 +86,8 @@ function bindIrcEvents({
   currentPrefixRef,
   normalizeMessage,
   reply,
-  getStartupChannels
+  getStartupChannels,
+  notifyRestartComplete
 }) {
   capabilityManager.bindEvents();
 
@@ -243,6 +244,10 @@ function bindIrcEvents({
     const startupChannels = typeof getStartupChannels === 'function' ? getStartupChannels() : (config.channels || []);
     for (const channelName of startupChannels) {
       client.join(channelName);
+    }
+
+    if (typeof notifyRestartComplete === 'function') {
+      notifyRestartComplete();
     }
   });
 
