@@ -109,6 +109,25 @@ function sendCtcpPing(ctx, nick, timestamp) {
   return sendRaw(client, 'PRIVMSG', targetNick, `\x01PING ${timestamp}\x01`);
 }
 
+function sendCtcpResponse(client, nick, type, parameter) {
+  const targetNick = String(nick || '').trim();
+
+  if (!client || !targetNick) {
+    return false;
+  }
+
+  if (typeof client.ctcpResponse === 'function') {
+    if (parameter) {
+      client.ctcpResponse(targetNick, type, parameter);
+    } else {
+      client.ctcpResponse(targetNick, type);
+    }
+    return true;
+  }
+
+  return sendRaw(client, 'NOTICE', targetNick, `\x01${type}${parameter ? ` ${parameter}` : ''}\x01`);
+}
+
 function sendPing(ctx, useMilliseconds) {
   const targetUsers = parseTargets(ctx);
   const callerNick = getCallerNick(ctx);
@@ -170,6 +189,30 @@ function getNoticeNick(event) {
     event?.source?.nick ||
     ''
   );
+}
+
+function getCtcpParameter(event) {
+  const message = String(event?.message || '').trim();
+  const [type, ...parameters] = message.split(/\s+/);
+
+  return String(event?.type || '').toUpperCase() === 'PING' && type?.toUpperCase() === 'PING'
+    ? parameters.join(' ')
+    : '';
+}
+
+function handleCtcpRequest(event, { client } = {}) {
+  if (String(event?.type || '').toUpperCase() !== 'PING') {
+    return false;
+  }
+
+  const nick = getNoticeNick(event);
+  const parameter = getCtcpParameter(event);
+
+  if (!nick || !String(event?.message || '').trim()) {
+    return false;
+  }
+
+  return sendCtcpResponse(client, nick, 'PING', parameter);
 }
 
 function makeReplyCtx(data) {
@@ -255,5 +298,8 @@ module.exports = {
 
   handleNotice,
   onNotice: handleNotice,
-  notice: handleNotice
+  notice: handleNotice,
+  handleCtcpRequest,
+  onCtcpRequest: handleCtcpRequest,
+  ctcpRequest: handleCtcpRequest
 };
