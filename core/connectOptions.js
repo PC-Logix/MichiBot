@@ -60,6 +60,11 @@ function buildIrcConnectionOptions(config = {}) {
     };
     options.sasl_mechanism = mechanism;
     options.sasl_disconnect_on_fail = sasl.disconnectOnFail !== false;
+  } else {
+    // irc-framework otherwise treats options.password (our IRC PASS, including
+    // a ZNC user/network password) as SASL credentials when SASL is offered.
+    // An empty account object explicitly disables that fallback.
+    options.account = {};
   }
 
   return options;
