@@ -30,7 +30,7 @@ function cleanExpired(map) {
   const cutoff = Date.now() - TIMEOUT_MS;
 
   for (const [nick, data] of map.entries()) {
-    if (!data || data.timestamp < cutoff) {
+    if (!data || (data.expiresAt || data.timestamp) < cutoff) {
       map.delete(nick);
     }
   }
@@ -147,8 +147,6 @@ function sendPing(ctx, useMilliseconds) {
   cleanExpired(pendingPing);
   cleanExpired(pendingMsp);
 
-  const timestamp = Date.now();
-
   for (const nick of usersToPing) {
     const key = normalizeNick(nick);
 
@@ -156,16 +154,24 @@ function sendPing(ctx, useMilliseconds) {
       continue;
     }
 
-    map.set(key, {
+    // Keep the pending entry in place before writing so a very fast reply
+    // cannot arrive before it is registered. The timer itself starts only
+    // after the CTCP request has been handed to the IRC client.
+    const pending = {
       ctx,
       target: getReplyTarget(ctx),
-      timestamp
-    });
+      timestamp: null,
+      expiresAt: Date.now()
+    };
 
-    if (!sendCtcpPing(ctx, nick, timestamp)) {
+    map.set(key, pending);
+
+    if (!sendCtcpPing(ctx, nick, pending.expiresAt)) {
       map.delete(key);
       return say(ctx, 'Ping failed: IRC client does not expose a CTCP/raw send method.');
     }
+
+    pending.timestamp = Date.now();
   }
 }
 
