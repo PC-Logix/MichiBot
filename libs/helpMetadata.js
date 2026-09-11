@@ -60,7 +60,6 @@ const HELP_METADATA = {
   juggle: { help: 'Juggle with items', args: '[Number:int]' },
   listaliases: { help: 'Get aliases for a command, or list all aliases.', args: '[Command:string]' },
   listadmins: { help: 'List bot administrator identities.' },
-  listcommands: { help: 'List commands.' },
   listdnsbl: { help: 'List tracked DNS blocklist services.' },
   listplugins: { help: 'List currently loaded plugins.' },
   linkdiscord: { help: 'Admin: link a Discord user ID to a NickServ account.', args: 'DiscordUserID:string NickServAccount:string' },

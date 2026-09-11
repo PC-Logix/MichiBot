@@ -46,13 +46,6 @@ const commandSpecs = [
     access: adminAccess
   },
   {
-    name: 'listcommands',
-    access: {
-      public: true
-    },
-    aliases: ['commands']
-  },
-  {
     name: 'help',
     access: {
       public: true
@@ -337,12 +330,6 @@ module.exports = {
       case 'listplugins': {
         const plugins = admin.listPlugins();
         return reply(ctx, `Plugins: ${plugins.join(', ') || '(none)'}`);
-      }
-
-      case 'listcommands':
-      case 'commands': {
-        const visible = await admin.listVisibleCommands(ctx);
-        return reply(ctx, `Commands: ${visible.join(', ') || '(none)'}`);
       }
 
       case 'help':
