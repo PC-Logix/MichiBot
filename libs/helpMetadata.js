@@ -26,7 +26,21 @@ const HELP_METADATA = {
   checkdnsbl: { help: 'Check an address against tracked DNS blocklists.', args: 'Address:string' },
   claim: { help: 'Link your Discord identity to your authenticated IRC account.', args: '[Code:string]' },
   clearpings: { help: 'Clears your pings from the DB' },
-  command: { help: 'Manage dynamic commands.', args: 'SubCommand:string [Params:string]' },
+  command: {
+    help: 'Create and manage public dynamic commands.',
+    args: 'Subcommand:string [Params:string]',
+    subcommands: {
+      list: { usage: 'list', help: 'List every saved dynamic command.' },
+      print: { usage: 'print Command:string', help: 'Show a command\'s saved response and whether it is registered.' },
+      add: { usage: 'add Command:string Response:string', help: 'Create and register a new dynamic command.' },
+      edit: { usage: 'edit Command:string Response:string', aliases: ['update', 'change', 'set'], help: 'Replace an existing command\'s response.' },
+      del: { usage: 'del Command:string', aliases: ['delete', 'rem', 'remove'], help: 'Delete a dynamic command and unregister it immediately.' },
+      addhelp: { usage: 'addhelp Command:string Description:string', aliases: ['sethelp', 'help'], help: 'Set the help text shown for a dynamic command.' },
+      alias: { usage: 'alias', help: 'Explain how to call another dynamic command from a response.' },
+      placeholders: { usage: 'placeholders', help: 'List supported response placeholders.' },
+      prefixes: { usage: 'prefixes', help: 'List supported response prefixes.' }
+    }
+  },
   curseword: { help: 'Holy manbats Batman!' },
   dbversion: { help: 'Get current database version' },
   defend: { help: 'Defend against attacks and things thrown at you.', args: 'Action:string [Item:string]' },

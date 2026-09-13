@@ -167,7 +167,9 @@ function commandUrl(ctx) {
 }
 
 function formatCommandHelp(ctx, commandName) {
-  const requested = String(commandName || '').trim().replace(/^#+/, '').toLowerCase();
+  const requestedParts = String(commandName || '').trim().replace(/^#+/, '').split(/\s+/);
+  const requested = String(requestedParts.shift() || '').toLowerCase();
+  const requestedSubcommand = String(requestedParts.shift() || '').toLowerCase();
   if (!requested) {
     const url = commandUrl(ctx);
     return url ? `Help: ${url}` : `Usage: ${getPrefix(ctx)}help <command>`;
@@ -190,12 +192,25 @@ function formatCommandHelp(ctx, commandName) {
   const meta = getHelpMetadata(name) || {};
   const help = command.help || meta.help || 'No help text set for this command.';
   const args = meta.args ? ` Arguments: ${meta.args}.` : '';
+  const subcommands = meta.subcommands || {};
+  const subcommand = Object.entries(subcommands).find(([subcommandName, subcommandInfo]) =>
+    subcommandName === requestedSubcommand || (subcommandInfo.aliases || []).includes(requestedSubcommand)
+  );
+  if (requestedSubcommand && subcommand) {
+    const [subcommandName, subcommandInfo] = subcommand;
+    return `${getPrefix(ctx)}${name} ${subcommandInfo.usage || subcommandName}: ${subcommandInfo.help}`;
+  }
+
+  const subcommandNames = Object.keys(subcommands);
+  const subcommandsSuffix = subcommandNames.length ?
+    ` Subcommands: ${subcommandNames.join(', ')}. Use ${getPrefix(ctx)}help ${name} <subcommand> for syntax.` :
+    '';
   const aliases = ctx.commands.listAliases()
     .filter(item => item.target === name && !item.hidden)
     .map(item => `${getPrefix(ctx)}${item.name}${item.defaultArgs.length ? `→${getPrefix(ctx)}${item.target} ${item.defaultArgs.join(' ')}` : ''}`);
   const aliasText = aliases.length ? ` Aliases: ${aliases.join(', ')}.` : '';
 
-  return `${getPrefix(ctx)}${name}: ${help}${args}${aliasNote}${aliasText}`;
+  return `${getPrefix(ctx)}${name}: ${help}${args}${subcommandsSuffix}${aliasNote}${aliasText}`;
 }
 
 
@@ -334,7 +349,7 @@ module.exports = {
 
       case 'help':
       case 'syntax':
-        return reply(ctx, formatCommandHelp(ctx, getArg(ctx, 0)));
+        return reply(ctx, formatCommandHelp(ctx, fullText(ctx)));
 
       case 'listaliases': {
         const aliases = ctx.commands.listAliases()

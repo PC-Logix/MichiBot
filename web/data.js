@@ -603,6 +603,12 @@ function buildHelpRow(info, prefix, aliasRegistry, options = {}) {
     usage: `${prefix}${name}`,
     help,
     args: info.args || info.arguments || meta.args || '',
+    subcommands: Object.entries(meta.subcommands || {}).map(([name, subcommand]) => ({
+      name,
+      usage: subcommand.usage || name,
+      aliases: Array.isArray(subcommand.aliases) ? subcommand.aliases : [],
+      help: subcommand.help || ''
+    })),
     access,
     accessLabel: permission,
     accessLevel: accessLevel(access),

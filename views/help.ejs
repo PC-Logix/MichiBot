@@ -40,6 +40,15 @@
           <div class="help-extra">Argument<%= String(command.args).includes(' ') ? 's' : '' %>: <code><%= command.args %></code></div>
         <% } %>
 
+        <% if (command.subcommands && command.subcommands.length) { %>
+          <div class="help-extra">
+            Subcommands:
+            <% for (const subcommand of command.subcommands) { %>
+              <div><code><%= prefix %><%= command.name %> <%= subcommand.usage %></code> — <%= subcommand.help %><%= subcommand.aliases.length ? ` (also: ${subcommand.aliases.join(', ')})` : '' %></div>
+            <% } %>
+          </div>
+        <% } %>
+
         <div class="help-extra"><%= command.extra.join(' | ') %></div>
       </td>
       <td class="alias-cell">
